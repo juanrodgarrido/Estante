@@ -58,6 +58,11 @@ type Auth = ReturnType<typeof createAuth>;
 
 const globalForAuth = globalThis as unknown as { _auth?: Auth };
 
+/** Descarta la instancia guardada (se recrea con el siguiente `getAuth()`). */
+export function resetAuth(): void {
+  globalForAuth._auth = undefined;
+}
+
 // Perezoso: el build no necesita variables de entorno.
 export function getAuth(): Auth {
   globalForAuth._auth ??= createAuth();

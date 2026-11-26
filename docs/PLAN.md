@@ -53,6 +53,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **El usuario de MongoDB necesita permisos de lectura y escritura** sobre la base `estante` (en Atlas: *Database Access* → rol «Read and write to any database» o `readWrite` sobre `estante`). Better Auth crea las colecciones `user`, `session`, `account`, `verification` y `rateLimit` la primera vez que se usan.
 - Dependencias nuevas: `better-auth` y `@better-auth/mongo-adapter` (el stack de auth), `zod` (validación; antes solo llegaba de forma transitiva) y los componentes shadcn `input` y `label`.
 - Con `BETTER_AUTH_URL` fijo, el login solo funciona en ese dominio (no en las URLs de preview de Vercel).
+- **Cliente de MongoDB cerrado en Vercel**: en producción apareció `MongoTopologyClosedError: Topology is closed` (digest `3914836991`) al leer la sesión con la cookie guardada; `/api/health` seguía en ok y borrar las cookies lo "arreglaba". Causa de fondo no confirmada. Mitigación en `server/auth.ts` (`readSession`): si la lectura de sesión falla con ese error, se descartan el cliente (`resetMongoClient` en `lib/db.ts`) y la instancia de Better Auth (`resetAuth` en `lib/auth.ts`) y se reintenta una vez; el resto de errores se propaga igual. No cubre `/api/auth/*` ni otras lecturas de Mongo. Si reaparece, mirar en los logs de Vercel el error anterior a «Topology is closed»; la alternativa es `attachDatabasePool` de `@vercel/functions`.
 
 ### Decisiones de la Sesión 4 (`libros`)
 

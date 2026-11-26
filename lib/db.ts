@@ -17,6 +17,14 @@ export function getMongoClient(): MongoClient {
   return globalForMongo._mongoClient;
 }
 
+/**
+ * Descarta el cliente guardado para que la siguiente llamada cree uno nuevo.
+ * Solo se usa cuando el driver informa de que su conexión está cerrada.
+ */
+export function resetMongoClient(): void {
+  globalForMongo._mongoClient = undefined;
+}
+
 /** `Db` síncrono (lo necesita el adaptador de Better Auth). */
 export function getDbSync(): Db {
   return getMongoClient().db(process.env.MONGODB_DB ?? "estante");
