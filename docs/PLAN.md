@@ -6,7 +6,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 
 - [ ] Sesión 0 — Preparación (manual, sin Claude Code)
 - [x] Sesión 1 — `base`: estructura, diseño y PWA
-- [ ] Sesión 2 — `deploy`: despliegue en Vercel
+- [x] Sesión 2 — `deploy`: despliegue en Vercel (pasos en el README; el despliegue lo hace Juan a mano)
 - [ ] Sesión 3 — `auth`: registro, login y sesión
 - [ ] Sesión 4 — `libros`: búsqueda y ficha de libro
 - [ ] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
@@ -35,6 +35,12 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - `lib/db.ts` exporta `getDb()`; lanza error solo al usarse sin `MONGODB_URI`, así que el build no necesita la variable. `/api/health` devuelve 200 `{status:"ok"}` o 503 sin detalles internos.
 - ESLint ignora `.claude/**` (scripts de las skills). `.gitignore` versiona `.env.example` y ignora `.taste-skill/`.
 - La skill `design-taste-frontend` está pensada para webs de empresa y su deal de paletas para `saas` solo ofrece fondos oscuros fríos, así que solo se aplicaron sus reglas de sistema (una escala de radios, un estilo de botón, contraste, objetivos de 44 px, sin violeta). La paleta y las fuentes son propias. Su checker/gate de páginas no se ejecuta en este proyecto.
+
+### Decisiones de la Sesión 2 (`deploy`)
+
+- Sin `vercel.json` ni cambios en `next.config.ts`: Vercel detecta Next.js solo. El build no necesita ninguna variable de entorno; `/api/health` (dinámico) solo necesita `MONGODB_URI` en ejecución.
+- `BETTER_AUTH_URL` en Vercel es la URL de producción (sin barra final) y exige un redeploy tras cambiarla. Las URLs de preview tienen otro dominio, así que el login (Sesión 3) solo se probará en producción, salvo que se configure `trustedOrigins`/`baseURL` dinámico en Better Auth.
+- `BETTER_AUTH_SECRET` de producción distinto del local. Las variables de cada sesión se añaden en Vercel cuando llega esa sesión (`NEXT_PUBLIC_*` requieren redeploy).
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 

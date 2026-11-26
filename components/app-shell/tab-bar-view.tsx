@@ -28,11 +28,12 @@ export function TabBarView({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"
     >
       <ul
-        className="mx-auto grid max-w-xl grid-cols-4 px-2 pb-safe"
+        className="mx-auto grid max-w-xl grid-cols-4 px-2"
         style={{
+          paddingBottom: "var(--tabbar-pb)",
           paddingLeft: "max(0.5rem, var(--safe-left))",
           paddingRight: "max(0.5rem, var(--safe-right))",
         }}
@@ -46,7 +47,7 @@ export function TabBarView({ pathname }: { pathname: string | null }) {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex h-16 flex-col items-center justify-center gap-1 rounded-2xl text-[0.6875rem] font-medium tracking-wide transition-colors",
+                  "group flex h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[0.6875rem] font-medium tracking-wide transition-colors",
                   active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                 )}
               >

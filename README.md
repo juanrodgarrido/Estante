@@ -90,4 +90,45 @@ claude --resume base    # retomar una sesión
 
 ## Despliegue
 
-(Se completa en la Sesión 2 del plan.)
+La app se despliega en [Vercel](https://vercel.com). Cada `git push` a `main` genera un despliegue de producción; el resto de ramas generan previews.
+
+### Antes de empezar
+
+- El código está subido a GitHub (`origin/main`).
+- En MongoDB Atlas, *Network Access* incluye `0.0.0.0/0` (Vercel no tiene IPs fijas).
+- Tienes a mano la cadena de conexión de Atlas (`MONGODB_URI`).
+
+### Pasos
+
+1. Entra en [vercel.com/new](https://vercel.com/new) con tu cuenta de GitHub.
+2. En *Import Git Repository* elige `Estante`. Si no aparece, pulsa *Adjust GitHub App Permissions* y da acceso al repositorio.
+3. Vercel detecta Next.js solo. Deja *Framework Preset* en `Next.js` y no cambies los comandos de build ni el directorio de salida.
+4. Antes de pulsar *Deploy*, abre *Environment Variables* y añade las variables de la tabla siguiente (marca *Production*, *Preview* y *Development*, salvo donde se indique).
+5. Pulsa **Deploy** y espera a que termine (1-2 minutos). Vercel te dará una URL del tipo `https://estante-xxxx.vercel.app`.
+6. Ajusta `BETTER_AUTH_URL` con la URL de producción real:
+   1. En *Settings → Environment Variables*, edita `BETTER_AUTH_URL` y pon esa URL, **sin barra final** (por ejemplo `https://estante-xxxx.vercel.app`).
+   2. Ve a *Deployments*, abre el menú `…` del último despliegue y pulsa **Redeploy**. Las variables nuevas solo se aplican a los despliegues posteriores.
+   3. Si quieres una URL más corta, cámbiala en *Settings → Domains* y actualiza `BETTER_AUTH_URL` con la nueva.
+7. Comprueba que funciona: abre `https://<tu-url>/api/health`. Debe responder `{"status":"ok","db":"up"}`. Si devuelve 503, revisa `MONGODB_URI` y *Network Access* en Atlas (los logs están en *Logs* del proyecto).
+8. En el iPhone, abre la URL en Safari, pulsa **Compartir → Añadir a pantalla de inicio** y ábrela desde el icono: debe verse a pantalla completa, sin la barra de Safari.
+
+### Variables de entorno en Vercel
+
+| Variable | Valor en producción | Cuándo hace falta |
+|---|---|---|
+| `MONGODB_URI` | Cadena de conexión de Atlas | Ya (`/api/health`) |
+| `MONGODB_DB` | `estante` | Ya |
+| `BETTER_AUTH_SECRET` | Un secreto **distinto del local**: `openssl rand -base64 32` | Sesión 3 (auth). Puedes ponerla ya |
+| `BETTER_AUTH_URL` | URL de producción, sin barra final (paso 6) | Sesión 3. Puedes ponerla ya |
+| `GOOGLE_BOOKS_API_KEY` | API key de Google Books | Sesión 4 (libros) |
+| `PUSHER_APP_ID` | ID de la app de Pusher | Sesión 8 (chat) |
+| `PUSHER_SECRET` | Secreto de Pusher | Sesión 8 |
+| `NEXT_PUBLIC_PUSHER_KEY` | Clave pública de Pusher | Sesión 8 |
+| `NEXT_PUBLIC_PUSHER_CLUSTER` | `eu` | Sesión 8 |
+
+Notas:
+
+- Las variables vacías no hace falta crearlas: añade cada una cuando llegue la sesión que la usa.
+- Las variables `NEXT_PUBLIC_*` se incrustan en el código durante el build: si las cambias, haz un nuevo despliegue.
+- `BETTER_AUTH_URL` es la URL de **producción**. Las URLs de preview (`*-git-<rama>-*.vercel.app`) tienen otro dominio y el login no funcionará en ellas con esa configuración; prueba en la URL de producción.
+- Nunca subas `.env.local` al repositorio ni pegues secretos en el código: solo van en *Environment Variables*.
