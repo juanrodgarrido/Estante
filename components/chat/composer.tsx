@@ -46,7 +46,6 @@ export function Composer({ onSend, onFocus }: { onSend: (text: string) => void; 
           ref={ref}
           value={text}
           rows={1}
-          enterKeyHint="send"
           placeholder="Escribe un mensaje"
           autoComplete="off"
           onFocus={onFocus}
