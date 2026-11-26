@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Library, Settings, Users } from "lucide-react";
+import { Library, Settings } from "lucide-react";
 import { ScreenHeader } from "@/components/app-shell/screen-header";
 import { EmptyState } from "@/components/empty-state";
+import { FriendsLink, FriendsLinkFallback } from "@/components/friends/friends-link";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStatsGrid } from "@/components/profile/profile-stats";
 import { ShelfTabs } from "@/components/shelf/shelf-tabs";
@@ -49,9 +50,9 @@ export default function PerfilPage({ searchParams }: { searchParams: Promise<{ e
         title="Perfil"
         action={
           <>
-            <Link href="/amigos" aria-label="Amistades" className={iconLink}>
-              <Users className="size-5" aria-hidden />
-            </Link>
+            <Suspense fallback={<FriendsLinkFallback />}>
+              <FriendsLink />
+            </Suspense>
             <Link href="/ajustes" aria-label="Ajustes" className={iconLink}>
               <Settings className="size-5" aria-hidden />
             </Link>

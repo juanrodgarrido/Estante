@@ -10,6 +10,7 @@ import {
   setRatingSchema,
   setStatusSchema,
 } from "@/lib/validation/shelf";
+import { clearActivity, clearRatingActivity, recordActivity } from "@/server/activity/repository";
 import { getCurrentUser } from "@/server/auth";
 import { getUserBooks, type UserBookDoc } from "./repository";
 
@@ -73,6 +74,15 @@ export async function setShelfStatusAction(input: unknown): Promise<ActionResult
       },
       { upsert: true },
     );
+
+    // Actividad para los amigos: solo cuando cambia algo visible.
+    if (status === "reading" && existing?.status !== "reading") {
+      await recordActivity(user.id, bookId, "started");
+    } else if (status === "read" && existing?.status !== "read") {
+      await recordActivity(user.id, bookId, "finished", rating);
+    } else if (status === "read" && rating !== undefined && rating !== existing?.rating) {
+      await recordActivity(user.id, bookId, "rated", rating);
+    }
   } catch (error) {
     console.error("setShelfStatusAction", error);
     return { ok: false, error: GENERIC_ERROR };
@@ -95,6 +105,8 @@ export async function setRatingAction(input: unknown): Promise<ActionResult> {
         : { $set: { rating, updatedAt: new Date() } },
     );
     if (result.matchedCount === 0) return { ok: false, error: "Este libro no está en tus leídos" };
+    if (rating === null) await clearRatingActivity(user.id, bookId);
+    else await recordActivity(user.id, bookId, "rated", rating);
   } catch (error) {
     console.error("setRatingAction", error);
     return { ok: false, error: GENERIC_ERROR };
@@ -139,6 +151,7 @@ export async function removeFromShelfAction(input: unknown): Promise<ActionResul
       userId: new ObjectId(user.id),
       bookId: new ObjectId(parsed.data.bookId),
     });
+    await clearActivity(user.id, parsed.data.bookId);
   } catch (error) {
     console.error("removeFromShelfAction", error);
     return { ok: false, error: GENERIC_ERROR };

@@ -27,7 +27,14 @@ function isActive(tab: Tab, pathname: string | null) {
 const CELL = "flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium tracking-wide";
 
 /** Barra inferior sin estado: `pathname` null = aún no se conoce la ruta. */
-export function TabBarView({ pathname }: { pathname: string | null }) {
+export function TabBarView({
+  pathname,
+  badges = {},
+}: {
+  pathname: string | null;
+  /** Número a mostrar sobre el icono de cada pestaña (por `href`); 0 u omitido = sin badge. */
+  badges?: Partial<Record<string, number>>;
+}) {
   const activeIndex = TABS.findIndex((tab) => isActive(tab, pathname));
 
   return (
@@ -69,6 +76,7 @@ export function TabBarView({ pathname }: { pathname: string | null }) {
           {TABS.map((tab) => {
             const active = isActive(tab, pathname);
             const Icon = tab.icon;
+            const badge = badges[tab.href] ?? 0;
             return (
               <li key={tab.href}>
                 <Link
@@ -80,8 +88,17 @@ export function TabBarView({ pathname }: { pathname: string | null }) {
                     active ? "text-primary" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span className="flex h-7 w-12 items-center justify-center transition-transform group-active:scale-90">
+                  <span className="relative flex h-7 w-12 items-center justify-center transition-transform group-active:scale-90">
                     <Icon className="size-5" strokeWidth={active ? 2.4 : 1.8} aria-hidden />
+                    {badge > 0 ? (
+                      <span
+                        role="img"
+                        aria-label={`${badge} ${badge === 1 ? "solicitud pendiente" : "solicitudes pendientes"}`}
+                        className="absolute right-1.5 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold leading-none tabular-nums text-primary-foreground"
+                      >
+                        {badge > 9 ? "9+" : badge}
+                      </span>
+                    ) : null}
                   </span>
                   {tab.label}
                 </Link>

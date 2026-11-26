@@ -11,7 +11,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 4 — `libros`: búsqueda y ficha de libro
 - [x] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
 - [x] Sesión 6 — `perfil`: perfil propio y estadísticas
-- [ ] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
+- [x] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
 - [ ] Sesión 8 — `chat`: mensajes en tiempo real
 - [ ] Sesión 9 — `pulido`: PWA offline, rendimiento y revisión final
 - [ ] Sesión 10 (opcional) — `extras`: notificaciones push, reseñas, objetivo anual
@@ -86,6 +86,18 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Contraseña**: `authClient.changePassword` con `revokeOtherSessions: true`.
 - Sin dependencias nuevas ni variables de entorno nuevas.
 
+### Decisiones de la Sesión 7 (`amigos`)
+
+- **`friendships` con `pairKey`** (`<idMenor>_<idMayor>`, índice único): un solo documento por pareja aunque A y B se envíen solicitud a la vez (el índice `{requesterId, addresseeId}` del plan no lo impide). Si B pide a A teniendo A una solicitud pendiente hacia B, se acepta directamente; ante la carrera (`E11000`) se relee y se acepta. Código en `server/friends/` (`repository.ts`, `actions.ts`); índices creados solos, como en `userBooks`.
+- **Privacidad**: `areFriends(a, b)` (`server/friends/repository.ts`, con `cache()` de React) es la puerta. `getOtherProfile(viewerId, username)` (`server/profile/visibility.ts`) es el **único camino a datos de otra persona**: sin amistad solo devuelve nombre, @usuario y avatar; bio, estadísticas y estantería exigen `areFriends`. `getProfileByUsername` ya no devuelve la bio. La actividad se filtra por mis amigos aceptados en cada consulta, así que al eliminar una amistad desaparece al instante.
+- **Sesión 8 (chat)**: validar la amistad con `areFriends` en cada acción y en el endpoint de autorización de Pusher. El botón «Enviar mensaje» va en `app/(tabs)/u/[username]/page.tsx`, junto a `FriendButton`, visible solo con `relation === "friends"`.
+- **Actividad**: colección nueva `activities` `{ userId, bookId, type: "started" | "finished" | "rated", rating?, createdAt }`, índice `{ userId, createdAt: -1 }`. La escriben las acciones de estantería (`server/activity/repository.ts`: `recordActivity`, `clearRatingActivity`, `clearActivity`), sin romperlas si falla. Cambiar la nota en los 15 min siguientes a terminar/valorar actualiza la entrada en vez de crear otra; quitar la nota borra los «valoró»; quitar el libro borra su actividad. Lo anterior a esta sesión no genera actividad. Paginación por cursor `<ms>_<id>` (`GET /api/activity?cursor=`, 10 por página).
+- **Búsqueda de personas**: `GET /api/users/search?q=` (2–40 caracteres, `@` inicial opcional): @usuario por prefijo o nombre que contiene, sin distinguir mayúsculas, con la cadena escapada para regex; máx. 20, sin incluirme.
+- **UI**: `FriendButton` mantiene su propia relación (no `useOptimistic`, porque en los resultados de búsqueda la prop no se refresca con `revalidatePath`); en «Amigos», eliminar pide confirmación inline. `ShelfTabs` acepta `ownerName` para la estantería ajena (solo lectura, textos en tercera persona).
+- **Badge** de solicitudes recibidas pendientes: sobre la pestaña Perfil (`TabBarWithBadges`, que lee el número en el servidor dentro del `<Suspense>` de la barra) y sobre el icono de Amistades en `/perfil` (`FriendsLink`). Se actualiza solo porque cada acción hace `revalidatePath("/", "layout")`.
+- **Pruebas**: no hay Playwright. El flujo completo se probó llamando a las Server Actions por HTTP con el id de `.next/server/server-reference-manifest.json` y `POST` a una página que las referencie (`/` para estantería, `/amigos` para amistades; en otra ruta devuelve 409 «Server Action unavailable»). El registro tiene límite de 5 por minuto por IP.
+- Sin dependencias ni variables de entorno nuevas.
+
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
 ---
@@ -143,10 +155,22 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
   requesterId: ObjectId,
   addresseeId: ObjectId,
   status: "pending" | "accepted",
+  pairKey: string,         // "<idMenor>_<idMayor>": una sola amistad por pareja
   createdAt: Date,
   respondedAt?: Date,
 }
-// índice único: { requesterId, addresseeId }
+// índices únicos: { pairKey } y { requesterId, addresseeId }; índice: { addresseeId, status }
+
+// activities — cambios de estantería que ven los amigos
+{
+  _id,
+  userId: ObjectId,
+  bookId: ObjectId,
+  type: "started" | "finished" | "rated",
+  rating?: 1 | 2 | 3 | 4 | 5,
+  createdAt: Date,
+}
+// índice: { userId, createdAt: -1 }
 
 // conversations — solo 1 a 1 entre amigos
 {

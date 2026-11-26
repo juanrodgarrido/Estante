@@ -10,20 +10,46 @@ import { percentOf } from "@/lib/shelf";
 import { cn } from "@/lib/utils";
 import type { ShelfEntry, ShelfStatus } from "@/types/shelf";
 
-const TABS: { status: ShelfStatus; label: string; icon: LucideIcon; empty: string }[] = [
-  { status: "reading", label: "Leyendo", icon: BookOpen, empty: "No estás leyendo ningún libro ahora mismo." },
-  { status: "want", label: "Pendientes", icon: BookMarked, empty: "Guarda aquí los libros que quieres leer." },
-  { status: "read", label: "Leídos", icon: CheckCheck, empty: "Los libros que termines aparecerán aquí." },
+const TABS: { status: ShelfStatus; label: string; icon: LucideIcon; empty: string; emptyOther: string }[] = [
+  {
+    status: "reading",
+    label: "Leyendo",
+    icon: BookOpen,
+    empty: "No estás leyendo ningún libro ahora mismo.",
+    emptyOther: "no está leyendo ningún libro ahora mismo.",
+  },
+  {
+    status: "want",
+    label: "Pendientes",
+    icon: BookMarked,
+    empty: "Guarda aquí los libros que quieres leer.",
+    emptyOther: "no tiene libros pendientes.",
+  },
+  {
+    status: "read",
+    label: "Leídos",
+    icon: CheckCheck,
+    empty: "Los libros que termines aparecerán aquí.",
+    emptyOther: "aún no ha terminado ningún libro.",
+  },
 ];
 
+type ShelfTabsProps = {
+  entries: ShelfEntry[];
+  initialTab?: ShelfStatus;
+  /** Estantería de otra persona: textos en tercera persona y sin acciones de edición. */
+  ownerName?: string;
+};
+
 /** Las tres estanterías en pestañas, con contador y cuadrícula de portadas. */
-export function ShelfTabs({ entries, initialTab = "reading" }: { entries: ShelfEntry[]; initialTab?: ShelfStatus }) {
+export function ShelfTabs({ entries, initialTab = "reading", ownerName }: ShelfTabsProps) {
   const [active, setActive] = useState<ShelfStatus>(initialTab);
   const tab = TABS.find((item) => item.status === active) ?? TABS[0];
   const visible = entries.filter((entry) => entry.status === active);
+  const readOnly = ownerName !== undefined;
 
   return (
-    <section aria-label="Mi estantería">
+    <section aria-label={readOnly ? `Estantería de ${ownerName}` : "Mi estantería"}>
       <div role="tablist" className="mx-gutter grid grid-cols-3 gap-1 rounded-full bg-muted p-1">
         {TABS.map((item) => {
           const count = entries.filter((entry) => entry.status === item.status).length;
@@ -49,13 +75,13 @@ export function ShelfTabs({ entries, initialTab = "reading" }: { entries: ShelfE
         })}
       </div>
 
-      <div id="shelf-panel" role="tabpanel" aria-labelledby={`tab-${active}`} className="mt-5">
+      <div id="shelf-panel" role="tabpanel" aria-labelledby={`tab-${active}`} className="mt-5 pb-6">
         {visible.length === 0 ? (
           <EmptyState
             icon={tab.icon}
             title={`Sin libros en «${tab.label}»`}
-            description={tab.empty}
-            action={{ href: "/buscar", label: "Buscar un libro" }}
+            description={readOnly ? `${ownerName} ${tab.emptyOther}` : tab.empty}
+            action={readOnly ? undefined : { href: "/buscar", label: "Buscar un libro" }}
             className="py-10"
           />
         ) : (

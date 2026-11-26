@@ -61,7 +61,7 @@ export async function ReadingNow() {
 
 export function ReadingNowSkeleton() {
   return (
-    <div aria-hidden className="animate-pulse px-gutter">
+    <div aria-hidden className="animate-pulse px-gutter pb-6">
       <div className="mb-3 h-6 w-36 rounded bg-muted" />
       <div className="h-48 rounded-xl bg-muted" />
     </div>
