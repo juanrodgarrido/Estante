@@ -150,7 +150,7 @@ export const openLibrary: BookProvider = {
     return {
       source: "openlibrary",
       sourceId,
-      title: title.replace(/s+/g, " ").trim(),
+      title: title.replace(/\s+/g, " ").trim(),
       subtitle: work.data.subtitle ?? doc?.subtitle ?? undefined,
       authors,
       description: htmlToText(description),
