@@ -7,7 +7,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [ ] Sesión 0 — Preparación (manual, sin Claude Code)
 - [x] Sesión 1 — `base`: estructura, diseño y PWA
 - [x] Sesión 2 — `deploy`: despliegue en Vercel (pasos en el README; el despliegue lo hace Juan a mano)
-- [ ] Sesión 3 — `auth`: registro, login y sesión
+- [x] Sesión 3 — `auth`: registro, login y sesión
 - [ ] Sesión 4 — `libros`: búsqueda y ficha de libro
 - [ ] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
 - [ ] Sesión 6 — `perfil`: perfil propio y estadísticas
@@ -42,6 +42,17 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - Sin `vercel.json` ni cambios en `next.config.ts`: Vercel detecta Next.js solo. El build no necesita ninguna variable de entorno; `/api/health` (dinámico) solo necesita `MONGODB_URI` en ejecución.
 - `BETTER_AUTH_URL` en Vercel es la URL de producción (sin barra final) y exige un redeploy tras cambiarla. Las URLs de preview tienen otro dominio, así que el login (Sesión 3) solo se probará en producción, salvo que se configure `trustedOrigins`/`baseURL` dinámico en Better Auth.
 - `BETTER_AUTH_SECRET` de producción distinto del local. Las variables de cada sesión se añaden en Vercel cuando llega esa sesión (`NEXT_PUBLIC_*` requieren redeploy).
+
+### Decisiones de la Sesión 3 (`auth`)
+
+- **Helper del servidor** (`server/auth.ts`): `getCurrentUser()` devuelve `{ id, name, username, email, image }` (tipo `CurrentUser` en `types/user.ts`) y redirige a `/login` si no hay sesión; `getOptionalUser()` devuelve `null` en vez de redirigir. Se usan solo en el servidor (Server Components dentro de `<Suspense>`, Server Actions, Route Handlers) y cada acción que toque datos de usuario debe llamarlos ella misma. `user.id` es un string: en las colecciones propias se guarda como `new ObjectId(user.id)`. Hay una sola lectura de sesión por petición (`cache()` de React); no se usa `"use cache: private"` para que cerrar sesión surta efecto al instante.
+- **Protección de rutas en dos capas**: `proxy.ts` (optimista: solo comprueba que exista la cookie y redirige a `/login`) y `AuthGate` (valida la sesión de verdad) en `app/(tabs)/layout.tsx` y `app/(full)/layout.tsx`. `RedirectIfSignedIn` en `app/(auth)/layout.tsx` manda a `/` si ya hay sesión (no se hace en el proxy para evitar bucles con cookies caducadas). Las rutas nuevas dentro de `(tabs)`/`(full)` quedan protegidas solas.
+- **Sesión**: 60 días (`expiresIn`), renovada cada día; la cookie lleva `Max-Age`, así que sobrevive al cierre de la PWA en iOS. No usar `rememberMe: false`.
+- **Rate limiting** activo con almacenamiento en MongoDB (colección `rateLimit`, porque la memoria no se comparte entre instancias de Vercel): 5 intentos por minuto en login y registro, 100 en el resto. Solo aplica a peticiones HTTP a `/api/auth/*`, por eso los formularios usan `authClient`.
+- **Validación**: esquemas Zod en `lib/validation/auth.ts`, usados en el cliente (UX) y en un hook `before` de Better Auth (autoridad). El nombre de usuario se guarda en minúsculas en el campo `username` (plugin `username`; `displayUsername` queda vacío).
+- **El usuario de MongoDB necesita permisos de lectura y escritura** sobre la base `estante` (en Atlas: *Database Access* → rol «Read and write to any database» o `readWrite` sobre `estante`). Better Auth crea las colecciones `user`, `session`, `account`, `verification` y `rateLimit` la primera vez que se usan.
+- Dependencias nuevas: `better-auth` y `@better-auth/mongo-adapter` (el stack de auth), `zod` (validación; antes solo llegaba de forma transitiva) y los componentes shadcn `input` y `label`.
+- Con `BETTER_AUTH_URL` fijo, el login solo funciona en ese dominio (no en las URLs de preview de Vercel).
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
