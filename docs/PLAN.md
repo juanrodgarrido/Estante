@@ -12,7 +12,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
 - [x] Sesión 6 — `perfil`: perfil propio y estadísticas
 - [x] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
-- [ ] Sesión 8 — `chat`: mensajes en tiempo real
+- [x] Sesión 8 — `chat`: mensajes en tiempo real
 - [ ] Sesión 9 — `pulido`: PWA offline, rendimiento y revisión final
 - [ ] Sesión 10 (opcional) — `extras`: notificaciones push, reseñas, objetivo anual
 
@@ -98,6 +98,19 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Pruebas**: no hay Playwright. El flujo completo se probó llamando a las Server Actions por HTTP con el id de `.next/server/server-reference-manifest.json` y `POST` a una página que las referencie (`/` para estantería, `/amigos` para amistades; en otra ruta devuelve 409 «Server Action unavailable»). El registro tiene límite de 5 por minuto por IP.
 - Sin dependencias ni variables de entorno nuevas.
 
+### Decisiones de la Sesión 8 (`chat`)
+
+- **Modelo**: el índice único `{participantIds}` del plan no valía (un índice único sobre un array impide que una persona esté en dos conversaciones), así que `conversations` lleva `pairKey` (como `friendships`). `messages` lleva `clientId` (uuid del cliente) con índice único por conversación: reintentar un envío que sí llegó devuelve el mismo mensaje en vez de duplicarlo. Índices creados solos.
+- **Puerta de acceso**: `getConversationAccess(me, conversationId)` (`server/chat/repository.ts`) exige ser participante **y** `areFriends`. La usan la página (`notFound()`), `GET /api/chat/[id]/messages` (404), las acciones (`sendMessageAction`, `markConversationReadAction`) y `POST /api/pusher/auth` (403). Al eliminar una amistad, la conversación desaparece de la lista y deja de poder abrirse o escribirse (no se borra: vuelve si se recupera la amistad). Una suscripción de Pusher ya autorizada sigue hasta que el cliente se reconecta; no puede enviar nada.
+- **Pusher**: canales `private-conversation-<id>` (evento `message`) y `private-user-<id>` (evento `unread-changed`, sin datos sensibles: el cliente vuelve a pedir `/api/chat/unread` o hace `router.refresh()`). `server/realtime/pusher.ts` devuelve `null` sin variables y `publish()` nunca lanza: el mensaje se guarda en MongoDB aunque Pusher falle. En el cliente, `lib/pusher-client.ts` carga `pusher-js` con `import()` solo si hay `NEXT_PUBLIC_PUSHER_KEY`; `useChannelEvent` comparte suscripciones y avisa al reconectar. Sin Pusher, la sala y el badge se ponen al día al volver a la app (`visibilitychange`) y al recargar.
+- **No leídos**: el badge de Chat es el total de **mensajes** ajenos posteriores a mi `lastReadAt` en conversaciones con amigos (`countUnread`); el punto de la lista mira solo el último mensaje. Leído = `markConversationReadAction` al abrir, al recibir un mensaje con la app visible y al volver a ella. Escribir marca la conversación como leída para quien escribe.
+- **Fechas** del chat en zona fija `Europe/Madrid` (`lib/chat-time.ts`) para que servidor y cliente pinten lo mismo; si hace falta otra zona, habrá que guardarla por usuario.
+- **iOS**: la sala es un contenedor `fixed` que sigue el `visualViewport` (alto y `offsetTop`, `components/chat/use-visual-viewport.ts`); con el teclado abierto (`data-keyboard="open"`) el campo pierde el margen de la safe area. Enter envía solo con teclado físico. El botón de enviar no roba el foco (el teclado no se cierra). `interactiveWidget: "resizes-content"` en la página para Android. **Pendiente de probar en el iPhone.**
+- **Rutas nuevas**: `/chat/nueva` (lista de amigos con «Escribir»). `openConversationAction` (form) crea o abre la conversación y redirige; la usan `/chat/nueva` y «Enviar mensaje» en `/u/[username]`. Las conversaciones sin mensajes no salen en la lista.
+- **Paginación**: 30 mensajes por página, cursor `<ms>_<id>` (`?before=`), carga al acercarse arriba conservando la posición.
+- **Dependencias nuevas**: `pusher` (servidor) y `pusher-js` (cliente), las oficiales. Sin variables nuevas (el servidor usa `NEXT_PUBLIC_PUSHER_CLUSTER`). **Añadir `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY` y `NEXT_PUBLIC_PUSHER_CLUSTER` en Vercel y redeploy.**
+- **Pruebas** como en la Sesión 7: acciones por HTTP con el id del manifest, `POST` a `/chat/<id>` (envío y leído) o `/chat/nueva` (abrir). Para probar en otro puerto: `BETTER_AUTH_URL=http://localhost:3100 npx next start -p 3100` (Better Auth rechaza otros orígenes).
+
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
 ---
@@ -176,11 +189,13 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
 {
   _id,
   participantIds: [ObjectId, ObjectId],  // ordenados
+  pairKey: string,         // "<idMenor>_<idMayor>": una sola conversación por pareja
   lastMessage?: { text: string, senderId: ObjectId, createdAt: Date },
   lastReadAt: { [userId: string]: Date },
+  createdAt: Date,
   updatedAt: Date,
 }
-// índice único: { participantIds }
+// índice único: { pairKey }; índice: { participantIds, "lastMessage.createdAt": -1 }
 
 // messages
 {
@@ -188,9 +203,10 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
   conversationId: ObjectId,
   senderId: ObjectId,
   text: string,            // máx. 2000 caracteres
+  clientId: string,        // uuid del cliente: el reintento no duplica
   createdAt: Date,
 }
-// índice: { conversationId, createdAt }
+// índice: { conversationId, createdAt: -1, _id: -1 }; índice único: { conversationId, clientId }
 ```
 
 ## Sistema de diseño

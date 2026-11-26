@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Library, Lock } from "lucide-react";
 import { ScreenHeader } from "@/components/app-shell/screen-header";
+import { OpenConversationButton } from "@/components/chat/open-conversation-button";
 import { EmptyState } from "@/components/empty-state";
 import { FriendButton } from "@/components/friends/friend-button";
 import { ProfileHeader } from "@/components/profile/profile-header";
@@ -25,8 +26,9 @@ async function OtherProfile({ params }: { params: Promise<{ username: string }> 
   return (
     <>
       <ProfileHeader user={{ ...profile, bio: priv?.bio ?? "" }} />
-      <div className="flex justify-center px-gutter pb-5">
+      <div className="flex flex-wrap items-start justify-center gap-2 px-gutter pb-5">
         <FriendButton userId={profile.id} relation={relation} />
+        {relation === "friends" ? <OpenConversationButton userId={profile.id} /> : null}
       </div>
       {priv ? (
         <>

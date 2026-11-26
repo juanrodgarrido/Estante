@@ -8,13 +8,27 @@ type Tab = {
   icon: LucideIcon;
   /** Prefijos de ruta que también activan la pestaña. */
   match: string[];
+  /** Texto accesible del badge. */
+  badgeLabel?: (count: number) => string;
 };
 
 const TABS: Tab[] = [
   { href: "/", label: "Inicio", icon: BookOpen, match: [] },
   { href: "/buscar", label: "Buscar", icon: Search, match: ["/buscar", "/libro"] },
-  { href: "/chat", label: "Chat", icon: MessageCircle, match: ["/chat"] },
-  { href: "/perfil", label: "Perfil", icon: User, match: ["/perfil", "/ajustes", "/amigos", "/u"] },
+  {
+    href: "/chat",
+    label: "Chat",
+    icon: MessageCircle,
+    match: ["/chat"],
+    badgeLabel: (n) => `${n} ${n === 1 ? "mensaje sin leer" : "mensajes sin leer"}`,
+  },
+  {
+    href: "/perfil",
+    label: "Perfil",
+    icon: User,
+    match: ["/perfil", "/ajustes", "/amigos", "/u"],
+    badgeLabel: (n) => `${n} ${n === 1 ? "solicitud pendiente" : "solicitudes pendientes"}`,
+  },
 ];
 
 function isActive(tab: Tab, pathname: string | null) {
@@ -93,7 +107,7 @@ export function TabBarView({
                     {badge > 0 ? (
                       <span
                         role="img"
-                        aria-label={`${badge} ${badge === 1 ? "solicitud pendiente" : "solicitudes pendientes"}`}
+                        aria-label={tab.badgeLabel?.(badge) ?? String(badge)}
                         className="absolute right-1.5 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold leading-none tabular-nums text-primary-foreground"
                       >
                         {badge > 9 ? "9+" : badge}
