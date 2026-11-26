@@ -40,6 +40,7 @@ export const getOptionalUser = cache(async (): Promise<CurrentUser | null> => {
     username: (user as { username?: string | null }).username ?? "",
     email: user.email,
     image: user.image ?? null,
+    bio: (user as { bio?: string | null }).bio ?? "",
   };
 });
 

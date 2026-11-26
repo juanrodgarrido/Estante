@@ -69,6 +69,7 @@ export function ShelfTabs({ entries, initialTab = "reading" }: { entries: ShelfE
                       title={entry.title}
                       author={entry.authors[0]}
                       coverUrl={entry.coverUrl}
+                      sizes="(min-width: 640px) 180px, 33vw"
                       className="w-full"
                     />
                     {entry.status === "reading" && percent !== null ? (

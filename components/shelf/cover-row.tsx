@@ -41,7 +41,7 @@ export function CoverRow({
         {entries.map((entry) => (
           <li key={entry.bookId} className="w-24 shrink-0 snap-start">
             <Link href={`/libro/${entry.publicId}`} aria-label={entry.title} className="block active:opacity-80">
-              <BookCover title={entry.title} author={entry.authors[0]} coverUrl={entry.coverUrl} className="w-full" />
+              <BookCover title={entry.title} author={entry.authors[0]} coverUrl={entry.coverUrl} sizes="96px" className="w-full" />
               {entry.status === "read" && entry.rating ? (
                 <p className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
                   <Star className="size-3.5 fill-primary text-primary" aria-hidden />

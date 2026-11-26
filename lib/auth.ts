@@ -20,6 +20,8 @@ function createAuth() {
       maxPasswordLength: 128,
       autoSignIn: true,
     },
+    // `bio` solo se escribe desde nuestra Server Action (input: false).
+    user: { additionalFields: { bio: { type: "string", required: false, input: false } } },
     // Cookie persistente (Max-Age): sobrevive a cerrar la PWA en iOS.
     session: { expiresIn: 60 * DAY, updateAge: DAY },
     rateLimit: {

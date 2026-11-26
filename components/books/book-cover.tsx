@@ -9,6 +9,8 @@ type BookCoverProps = {
   author?: string;
   coverUrl?: string;
   size?: "sm" | "lg";
+  /** Atributo `sizes` de la imagen; por defecto 64 px (sm) o 192 px (lg). */
+  sizes?: string;
   className?: string;
 };
 
@@ -26,7 +28,7 @@ function toneFor(title: string): string {
 }
 
 /** Portada 2:3 con `next/image`; si no hay imagen (o falla), una cubierta tipográfica. */
-export function BookCover({ title, author, coverUrl, size = "sm", className }: BookCoverProps) {
+export function BookCover({ title, author, coverUrl, size = "sm", sizes, className }: BookCoverProps) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const showImage = coverUrl && failedUrl !== coverUrl;
   const large = size === "lg";
@@ -44,7 +46,7 @@ export function BookCover({ title, author, coverUrl, size = "sm", className }: B
           src={coverUrl}
           alt={`Portada de ${title}`}
           fill
-          sizes={large ? "192px" : "64px"}
+          sizes={sizes ?? (large ? "192px" : "64px")}
           priority={large}
           className="object-cover"
           onError={() => setFailedUrl(coverUrl)}

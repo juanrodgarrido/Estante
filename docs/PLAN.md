@@ -10,7 +10,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 3 — `auth`: registro, login y sesión
 - [x] Sesión 4 — `libros`: búsqueda y ficha de libro
 - [x] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
-- [ ] Sesión 6 — `perfil`: perfil propio y estadísticas
+- [x] Sesión 6 — `perfil`: perfil propio y estadísticas
 - [ ] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
 - [ ] Sesión 8 — `chat`: mensajes en tiempo real
 - [ ] Sesión 9 — `pulido`: PWA offline, rendimiento y revisión final
@@ -76,6 +76,15 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **UI**: `components/shelf/` — `ShelfControl` (ficha), `ReadingProgress` (barra + formulario de página, también en Inicio), `ShelfTabs` (pestañas con contador y cuadrícula de 3 columnas en `/perfil`), `ReadingNow` (Inicio). `percentOf` en `lib/shelf.ts`. Las estadísticas y el encabezado de perfil son de la Sesión 6: `/perfil` solo tiene por ahora la estantería.
 - **Ajustes tras la primera prueba**: el selector de la ficha son tres botones con borde e icono (`shelf-icons.ts`), con el activo relleno; Inicio muestra «Leyendo ahora» (`ReadingCard`) más filas horizontales de Pendientes y Leídos recientes (`CoverRow`, máx. 12, `countShelf` para «Ver todos (N)»), que enlazan a `/perfil?estante=pendientes|leidos` (`ShelfTabs` acepta `initialTab`). «Lo he terminado» (Inicio y ficha) pasa el libro a Leídos con nota opcional (`StarRating`); guardar la última página (`onReachEnd` de `ReadingProgress`) abre ese panel en Inicio y pasa a Leído directamente en la ficha.
 - Sin dependencias nuevas.
+
+### Decisiones de la Sesión 6 (`perfil`)
+
+- **`bio`** es un campo adicional de Better Auth (`additionalFields`, `input: false`): llega en la sesión, así que `CurrentUser` tiene ahora `bio` (cadena, vacía si no hay). Nombre y bio se escriben directamente en la colección `user` desde Server Actions (`server/profile/actions.ts`), filtrando por el id de la sesión. No hay caché de cookie de sesión, así que los cambios se ven al instante.
+- **Avatar**: colección `avatars` con `_id` = id del usuario, `data` (Binary), `contentType`, `updatedAt`. `user.image` guarda solo la URL corta `/api/avatar/<id>?v=<timestamp>` (no inflar la sesión). `GET /api/avatar/[userId]` exige sesión, responde con `ETag`/304 y `Cache-Control: private` (inmutable de un año si la URL lleva `?v=`, 5 min si no). El cliente (`lib/avatar-client.ts`) recorta al centro a 256×256 y codifica en WebP ≤ 100 KB; **Safari/iOS puede no saber codificar WebP**, y entonces se usa JPEG (el servidor acepta ambos y comprueba los bytes mágicos y el tamaño, no las dimensiones). Se pinta con `next/image` `unoptimized`.
+- **Estadísticas** (`getProfileStats`): «este año» es el año natural en UTC según `finishedAt`; páginas = `pageCount` de los libros terminados este año (los que no tienen `pageCount` suman 0); valoración media = media de todas las notas de leídos (`—` si no hay).
+- **Componentes reutilizables** en `components/profile/`: `Avatar`, `ProfileHeader` (acepta `ProfileUser`), `ProfileStatsGrid`. `/u/[username]` usa `ProfileHeader` con la bio oculta para quien no es amigo; **Sesión 7**: tras `areFriends`, mostrar bio, `ProfileStatsGrid` (con `getProfileStats(profile.id)`) y la estantería de la otra persona. `getProfileByUsername` está en `server/profile/repository.ts`; un @usuario inexistente da `notFound()` y el propio redirige a `/perfil`.
+- **Contraseña**: `authClient.changePassword` con `revokeOtherSessions: true`.
+- Sin dependencias nuevas ni variables de entorno nuevas.
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
