@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { bookIdSchema } from "@/lib/validation/books";
+import { getCurrentUser } from "@/server/auth";
 import { getBook } from "@/server/books/repository";
+import { getShelfState } from "@/server/shelf/repository";
+import { ShelfControl } from "@/components/shelf/shelf-control";
 import { BookCover } from "./book-cover";
 import { BookDescription } from "./book-description";
 
@@ -27,6 +30,8 @@ export async function BookDetail({ id }: { id: string }) {
   if (!bookIdSchema.safeParse(id).success) notFound();
   const book = await getBook(id);
   if (!book) notFound();
+  const user = await getCurrentUser();
+  const shelf = await getShelfState(user.id, book._id);
 
   const details = [
     book.pageCount ? ["Páginas", String(book.pageCount)] : null,
@@ -46,8 +51,13 @@ export async function BookDetail({ id }: { id: string }) {
         ) : null}
       </div>
 
-      {/* Sesión 5: aquí va el botón de estantería (Leído / Leyendo / Pendiente) */}
-      <div data-slot="shelf-button" className="my-6 flex min-h-11 items-center justify-center" />
+      <div data-slot="shelf-button" className="my-6">
+        <ShelfControl
+          bookId={book._id}
+          pageCount={book.pageCount}
+          initial={shelf}
+        />
+      </div>
 
       {book.description ? (
         <section aria-labelledby="sinopsis" className="mt-2">

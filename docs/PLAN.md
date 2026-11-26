@@ -9,7 +9,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 2 — `deploy`: despliegue en Vercel (pasos en el README; el despliegue lo hace Juan a mano)
 - [x] Sesión 3 — `auth`: registro, login y sesión
 - [x] Sesión 4 — `libros`: búsqueda y ficha de libro
-- [ ] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
+- [x] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
 - [ ] Sesión 6 — `perfil`: perfil propio y estadísticas
 - [ ] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
 - [ ] Sesión 8 — `chat`: mensajes en tiempo real
@@ -65,6 +65,16 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Open Library es lento e irregular** (de 0,5 a 15 s por petición). No se le pasa `lang=es` (lo hacía aún más lento y estropeaba la relevancia). Timeouts: Google 6 s, Open Library 12 s; en la ficha, la búsqueda por clave (autores, páginas, ISBN) es opcional (7 s) y, si falla, los autores se sacan de los registros de autor de la obra. Una ficha guardada en ese modo degradado conserva sin páginas/ISBN hasta que pasen 30 días. Si el registro de la obra tampoco responde, `error.tsx` de la ficha ofrece «Reintentar».
 - **Descripciones**: se convierten a texto plano al normalizar (`htmlToText` en `server/books/normalize.ts`: HTML de Google y markdown de Open Library) y se pintan como `<p>`; no se usa `dangerouslySetInnerHTML` en ningún sitio.
 - **Portadas**: `next/image` con `remotePatterns` (`books.google.com`, `books.googleusercontent.com`, `covers.openlibrary.org`, `**.archive.org`); siempre https; de Google se usa el tamaño más grande ofrecido (`extraLarge`…`thumbnail`) sin forzar `zoom` (subirlo a mano devuelve «imagen no disponible» en libros antiguos) y sin `edge=curl`. Sin portada (o si falla): cubierta tipográfica de `components/books/book-cover.tsx`. La optimización de imágenes de Vercel tiene cuota en el plan gratuito.
+- Sin dependencias nuevas.
+
+### Decisiones de la Sesión 5 (`estanteria`)
+
+- **Datos**: `server/shelf/repository.ts` (`getUserBooks()` crea los índices del plan, `getShelfState`, `listShelf(userId, status?)` con `$lookup` a `books`, orden por `updatedAt` desc) y `server/shelf/actions.ts` (Server Actions: `setShelfStatusAction`, `setRatingAction`, `setProgressAction`, `removeFromShelfAction`). Esquemas Zod en `lib/validation/shelf.ts`. Cada acción llama a `getCurrentUser()` y filtra siempre por `userId` de la sesión, así que no se puede tocar el userBook de otro usuario.
+- **Las acciones se identifican por `bookId`** (`_id` de `books`, 24 hex; `Book._id`), no por el `_id` del userBook: el índice único `{userId, bookId}` hace equivalente ambos y permite añadir sin conocer aún el id. La ficha ya garantiza que el libro está en `books` (`getBook`).
+- **Reglas de estado**: a `reading` → `startedAt` (se conserva si ya leía), se borran `finishedAt` y `rating`; a `read` → `finishedAt`, `rating` opcional, se borra `currentPage`; a `want` → se borran fechas, nota y página. La nota solo se puede poner en `read` y la página solo en `reading` (y no puede superar `pageCount`).
+- **Refresco**: tras cada acción `revalidatePath("/", "layout")`, así Perfil, Inicio y la ficha muestran los cambios sin recargar. La UI es optimista con `useOptimistic` (`ShelfControl`, `ReadingProgress`); si la acción falla, se revierte y se muestra el error.
+- **UI**: `components/shelf/` — `ShelfControl` (ficha), `ReadingProgress` (barra + formulario de página, también en Inicio), `ShelfTabs` (pestañas con contador y cuadrícula de 3 columnas en `/perfil`), `ReadingNow` (Inicio). `percentOf` en `lib/shelf.ts`. Las estadísticas y el encabezado de perfil son de la Sesión 6: `/perfil` solo tiene por ahora la estantería.
+- **Ajustes tras la primera prueba**: el selector de la ficha son tres botones con borde e icono (`shelf-icons.ts`), con el activo relleno; Inicio muestra «Leyendo ahora» (`ReadingCard`) más filas horizontales de Pendientes y Leídos recientes (`CoverRow`, máx. 12, `countShelf` para «Ver todos (N)»), que enlazan a `/perfil?estante=pendientes|leidos` (`ShelfTabs` acepta `initialTab`). «Lo he terminado» (Inicio y ficha) pasa el libro a Leídos con nota opcional (`StarRating`); guardar la última página (`onReachEnd` de `ReadingProgress`) abre ese panel en Inicio y pasa a Leído directamente en la ficha.
 - Sin dependencias nuevas.
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)

@@ -14,7 +14,7 @@ async function BookContent({ params }: { params: Promise<{ id: string }> }) {
 export default function LibroPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
-      <ScreenHeader title="Libro" backHref="/buscar" />
+      <ScreenHeader title="Libro" backHref="/buscar" historyBack />
       <Suspense fallback={<BookDetailSkeleton />}>
         <BookContent params={params} />
       </Suspense>

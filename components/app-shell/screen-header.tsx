@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { BackButton } from "./back-button";
 
 type ScreenHeaderProps = {
   title: string;
@@ -7,16 +8,20 @@ type ScreenHeaderProps = {
   eyebrow?: string;
   /** Si se indica, muestra un botón de volver a esa ruta. */
   backHref?: string;
+  /** Volver a la pantalla de la que se viene; `backHref` pasa a ser solo el destino si no hay historial. */
+  historyBack?: boolean;
   /** Acción a la derecha (por ejemplo un botón de iconos). */
   action?: React.ReactNode;
 };
 
-export function ScreenHeader({ title, eyebrow, backHref, action }: ScreenHeaderProps) {
+export function ScreenHeader({ title, eyebrow, backHref, historyBack, action }: ScreenHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-transparent bg-background/85 pt-safe backdrop-blur-xl">
       <div className="flex min-h-header items-end justify-between gap-3 px-gutter pb-3 pt-2">
         <div className="flex min-w-0 items-center gap-2">
-          {backHref ? (
+          {backHref && historyBack ? (
+            <BackButton fallbackHref={backHref} />
+          ) : backHref ? (
             <Link
               href={backHref}
               aria-label="Volver"
