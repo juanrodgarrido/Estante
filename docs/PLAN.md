@@ -5,7 +5,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 ## Estado
 
 - [ ] Sesión 0 — Preparación (manual, sin Claude Code)
-- [ ] Sesión 1 — `base`: estructura, diseño y PWA
+- [x] Sesión 1 — `base`: estructura, diseño y PWA
 - [ ] Sesión 2 — `deploy`: despliegue en Vercel
 - [ ] Sesión 3 — `auth`: registro, login y sesión
 - [ ] Sesión 4 — `libros`: búsqueda y ficha de libro
@@ -24,6 +24,17 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - Privacidad: el perfil y la estantería solo son visibles para el propio usuario y sus amigos aceptados.
 - Los commits y los push los hace Juan a mano. Claude Code avisa cuando conviene hacer commit y propone el mensaje.
 - La cuenta de Pusher se crea al llegar a la Sesión 8. Hasta entonces las variables PUSHER_* quedan vacías y ningún código debe depender de ellas.
+
+### Decisiones de la Sesión 1 (`base`)
+
+- Route groups: `app/(tabs)` (con barra inferior), `app/(full)` (pantallas sin barra, p. ej. `/chat/[conversationId]`, donde la Sesión 8 fija el input sobre el teclado) y `app/(auth)` (`/login`, `/registro`, sin barra). Las pestañas Perfil/Chat/Buscar se marcan también en sus subrutas (`/ajustes`, `/amigos`, `/u/*` → Perfil; `/libro/*` → Buscar).
+- Con Cache Components, todo hook de ruta de cliente (`usePathname`, etc.) debe ir dentro de `<Suspense>`. La barra inferior se pinta ya con `TabBarView` (sin estado) y `TabBar` marca la pestaña activa al llegar la ruta. Tampoco se lee `params` fuera de `<Suspense>` en las rutas dinámicas.
+- Los componentes de shadcn se añaden uno a uno (`npx shadcn@latest add <nombre>`). Solo hay `button`, ajustado a una única forma (píldora) y a un mínimo de 44 px de alto. shadcn usa `@base-ui/react` (no Radix) con el estilo `base-nova`.
+- Dependencias nuevas: `mongodb` (driver), `server-only` (impide importar `lib/db.ts` desde el cliente), `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react`, `tw-animate-css` y `shadcn` (las instala shadcn/ui; son la base de sus componentes).
+- Iconos provisionales (una «E» hecha con tres lomos sobre terracota): `app/icon.svg`, `app/apple-icon.tsx` (180 px) y `app/icons/icon-{192,512,maskable}/route.tsx`, todos generados con `next/og` desde `lib/brand-icon.tsx`. Sustituir por el icono definitivo cuando exista.
+- `lib/db.ts` exporta `getDb()`; lanza error solo al usarse sin `MONGODB_URI`, así que el build no necesita la variable. `/api/health` devuelve 200 `{status:"ok"}` o 503 sin detalles internos.
+- ESLint ignora `.claude/**` (scripts de las skills). `.gitignore` versiona `.env.example` y ignora `.taste-skill/`.
+- La skill `design-taste-frontend` está pensada para webs de empresa y su deal de paletas para `saas` solo ofrece fondos oscuros fríos, así que solo se aplicaron sus reglas de sistema (una escala de radios, un estilo de botón, contraste, objetivos de 44 px, sin violeta). La paleta y las fuentes son propias. Su checker/gate de páginas no se ejecuta en este proyecto.
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
@@ -107,6 +118,40 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
 }
 // índice: { conversationId, createdAt }
 ```
+
+## Sistema de diseño
+
+Dirección: **«papel y tinta»**. Una app de lectura cálida, con titulares en serif con carácter y una interfaz sobria para que las portadas sean las protagonistas. Los tokens viven en `app/globals.css` (`:root` y `@media (prefers-color-scheme: dark)`); el modo oscuro sigue al sistema, sin interruptor. Nunca se usa violeta.
+
+**Color** (OKLCH en el CSS; hex aproximado entre paréntesis)
+
+| Token | Claro | Oscuro («lectura nocturna») |
+|---|---|---|
+| `background` | papel crema (`#f8f2e4`) | marrón tostado (`#1d140d`) |
+| `foreground` | tinta marrón (`#2a1b11`) | marfil (`#f1ebdc`) |
+| `card` | crema más clara | marrón un punto más claro |
+| `primary` | terracota (`#a24112`) | ámbar (`#e9a44e`) |
+| `secondary` | verde musgo claro | verde musgo oscuro |
+| `accent` | arena cálida | marrón cálido |
+| `muted` / `muted-foreground` | crema apagada / marrón medio | marrón medio / marfil apagado |
+| `border` | arena | marrón sutil |
+| `destructive` | rojo ladrillo | coral suave |
+
+`theme-color` del navegador: `#f8f2e4` (claro) y `#1d140d` (oscuro).
+
+**Tipografía** (`next/font/google`)
+
+- Titulares (`font-display`, `h1`–`h3`): **Fraunces**, serif variable con eje óptico.
+- Interfaz y texto (`font-sans`): **Instrument Sans**.
+- Campos de formulario siempre a 16 px o más (evita el zoom de iOS).
+
+**Radios**: `--radius: 1rem` para tarjetas y paneles (`rounded-lg`/`xl`/`2xl` derivan de él); botones y pestañas en píldora (`rounded-full`); portadas casi rectas, `--radius-cover: 0.375rem` (`rounded-cover`).
+
+**Espaciado y medidas**: escala de 4 px de Tailwind. Márgenes laterales de pantalla `--gutter: 1.25rem` (`px-gutter`). Objetivo táctil `--touch: 2.75rem` (44 px). Barra inferior `--tabbar-h: 4rem`, cabecera `--header-h: 3.5rem`. Contenido centrado con `max-w-xl`.
+
+**Safe areas**: `--safe-top/right/bottom/left` (de `env(safe-area-inset-*)`) y utilidades `pt-safe`, `pb-safe` y `pb-tabbar` (barra + safe area inferior). La cabecera aplica `pt-safe` y la barra inferior `pb-safe`; el `body` respeta los laterales.
+
+**Componentes base**: `components/app-shell/` (`TabBar`, `ScreenHeader`), `components/empty-state.tsx` y `components/ui/button.tsx`. Cada pantalla usa `ScreenHeader` + contenido; los estados vacíos usan `EmptyState` (lomos de libro + icono) con texto en español.
 
 ## Navegación de la app
 
@@ -351,6 +396,7 @@ Lee CLAUDE.md y docs/PLAN.md. Vamos con la Sesión 9 (pulido).
 1. Service worker con Serwist (o la opción recomendada para la versión instalada de Next.js): caché de la shell de la app, portadas y fuentes; página offline propia. No caches respuestas autenticadas de la API.
 2. Revisa en todas las pantallas: estados de carga (skeletons), estados vacíos, errores (error.tsx y not-found.tsx con el diseño de la app), transiciones suaves, feedback táctil.
 3. Revisa la experiencia iOS standalone: sin rebote raro en el scroll, sin zoom al enfocar inputs (font-size mínimo de 16 px), safe areas en todas las pantallas, gestos y botón atrás coherentes.
+3b. Adaptación a pantallas grandes (ligera, no una versión de escritorio aparte): a partir de `md`, la barra inferior pasa a ser una barra lateral izquierda con las mismas 4 pestañas; el contenido sube a `max-w-3xl`; las cuadrículas de portadas añaden columnas (de 3 a 5 o 6); el chat muestra la lista de conversaciones junto a la conversación abierta. Safe areas y barra inferior solo en móvil.
 4. Rendimiento: imágenes optimizadas, nada de "use client" innecesario, consultas con índices (crea los índices del plan con un script `npm run db:indexes` si no existen).
 5. Seguridad: usa un subagente para revisar todas las Server Actions y Route Handlers buscando accesos sin comprobación de sesión o de amistad, inyecciones en consultas de MongoDB y datos sensibles enviados al cliente. Corrige lo que encuentre.
 
