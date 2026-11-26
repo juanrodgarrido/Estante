@@ -20,7 +20,8 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Estante",
-    statusBarStyle: "black-translucent",
+    // Con "black-translucent" iOS recorta la ventana 59 px por abajo (innerHeight 873 de 932) y la barra inferior queda subida.
+    statusBarStyle: "black",
   },
   formatDetection: { telephone: false },
   other: { "apple-mobile-web-app-capable": "yes" },
