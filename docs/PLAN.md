@@ -8,7 +8,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 1 — `base`: estructura, diseño y PWA
 - [x] Sesión 2 — `deploy`: despliegue en Vercel (pasos en el README; el despliegue lo hace Juan a mano)
 - [x] Sesión 3 — `auth`: registro, login y sesión
-- [ ] Sesión 4 — `libros`: búsqueda y ficha de libro
+- [x] Sesión 4 — `libros`: búsqueda y ficha de libro
 - [ ] Sesión 5 — `estanteria`: Leídos, Leyendo y Pendientes
 - [ ] Sesión 6 — `perfil`: perfil propio y estadísticas
 - [ ] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
@@ -53,6 +53,18 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **El usuario de MongoDB necesita permisos de lectura y escritura** sobre la base `estante` (en Atlas: *Database Access* → rol «Read and write to any database» o `readWrite` sobre `estante`). Better Auth crea las colecciones `user`, `session`, `account`, `verification` y `rateLimit` la primera vez que se usan.
 - Dependencias nuevas: `better-auth` y `@better-auth/mongo-adapter` (el stack de auth), `zod` (validación; antes solo llegaba de forma transitiva) y los componentes shadcn `input` y `label`.
 - Con `BETTER_AUTH_URL` fijo, el login solo funciona en ese dominio (no en las URLs de preview de Vercel).
+
+### Decisiones de la Sesión 4 (`libros`)
+
+- **Servicio** en `server/books/`: `google.ts` y `openlibrary.ts` implementan `BookProvider` (`types.ts`) y normalizan al modelo `books`; `search.ts` (`searchBooks`) y `repository.ts` (`getBook`) son lo que usa el resto de la app. Los proveedores lanzan `ProviderError` ante red, cuota (403/429), 5xx o respuesta rara; Google solo está activo si hay `GOOGLE_BOOKS_API_KEY`, así que sin clave se usa Open Library directamente. Variable nueva: `OPENLIBRARY_CONTACT_EMAIL` (va en el `User-Agent` de Open Library; **añadirla también en Vercel**).
+- **Id público del libro** en la URL: `g-<googleId>` o `ol-<OL…W>`; `getBook()` acepta además el `_id` de Mongo (24 hex). `Book.publicId` da el id público a partir de un libro ya guardado. **Sesión 5**: usa `getBook(id)` (alias `ensureBook`) para garantizar que el libro está en `books` y obtener su `_id` antes de crear el `userBook`; los enlaces desde la estantería pueden usar `/libro/${book.publicId}`. El hueco del botón de estantería está en `components/books/book-detail.tsx` (`data-slot="shelf-button"`).
+- **Caché de `books`**: la ficha hace upsert por `source+sourceId`; con copia de menos de 30 días no se llama a la API, y si la API falla se sirve la copia caducada. Los índices del plan (`{source, sourceId}` único e `{isbn13}`) se crean solos la primera vez. Los resultados de búsqueda **no** se guardan en `books`, solo al abrir la ficha.
+- **Caché de búsquedas**: `"use cache: remote"` + `cacheLife` (`days` con Google, `hours` con el respaldo para volver a probar Google pronto). En local usa el handler en memoria/disco de Next; en Vercel la caché remota la aporta la plataforma (comprobar que funciona en producción).
+- **Búsqueda**: `GET /api/books/search?q=&page=` (Route Handler, sesión + Zod, 20 resultados por página, hasta 20 páginas). Con consulta en español (`language.ts`) se pide `langRestrict=es` a Google (y sin restricción si no hay nada). `search.ts` reordena dentro de cada página sin tocar el orden del proveedor salvo: título igual a la búsqueda primero, luego los que empiezan por ella, y los libros en español antes **solo si su título comparte palabras con la búsqueda**.
+- **Open Library es lento e irregular** (de 0,5 a 15 s por petición). No se le pasa `lang=es` (lo hacía aún más lento y estropeaba la relevancia). Timeouts: Google 6 s, Open Library 12 s; en la ficha, la búsqueda por clave (autores, páginas, ISBN) es opcional (7 s) y, si falla, los autores se sacan de los registros de autor de la obra. Una ficha guardada en ese modo degradado conserva sin páginas/ISBN hasta que pasen 30 días. Si el registro de la obra tampoco responde, `error.tsx` de la ficha ofrece «Reintentar».
+- **Descripciones**: se convierten a texto plano al normalizar (`htmlToText` en `server/books/normalize.ts`: HTML de Google y markdown de Open Library) y se pintan como `<p>`; no se usa `dangerouslySetInnerHTML` en ningún sitio.
+- **Portadas**: `next/image` con `remotePatterns` (`books.google.com`, `books.googleusercontent.com`, `covers.openlibrary.org`, `**.archive.org`); siempre https; de Google se usa el tamaño más grande ofrecido (`extraLarge`…`thumbnail`) sin forzar `zoom` (subirlo a mano devuelve «imagen no disponible» en libros antiguos) y sin `edge=curl`. Sin portada (o si falla): cubierta tipográfica de `components/books/book-cover.tsx`. La optimización de imágenes de Vercel tiene cuota en el plan gratuito.
+- Sin dependencias nuevas.
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
