@@ -29,18 +29,34 @@ export function Composer({ onSend, onFocus }: { onSend: (text: string) => void; 
     requestAnimationFrame(resize);
   }
 
+  const nearLimit = trimmed.length > MESSAGE_MAX_LENGTH - 200;
+
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
-      className="flex items-end gap-2"
     >
-      <label htmlFor="chat-input" className="sr-only">
-        Mensaje
-      </label>
-      <div className="relative min-w-0 flex-1">
+      {/* En el flujo (no flotando encima): en iOS lo que sobresale de la barra no se ve. */}
+      {nearLimit ? (
+        <p
+          id="chat-input-count"
+          aria-live="polite"
+          className={cn(
+            "px-4 pb-1.5 text-right text-xs tabular-nums",
+            tooLong ? "font-medium text-destructive" : "text-muted-foreground",
+          )}
+        >
+          {tooLong
+            ? `Sobran ${trimmed.length - MESSAGE_MAX_LENGTH} caracteres (máximo ${MESSAGE_MAX_LENGTH})`
+            : `${trimmed.length}/${MESSAGE_MAX_LENGTH}`}
+        </p>
+      ) : null}
+      <div className="flex items-end gap-2">
+        <label htmlFor="chat-input" className="sr-only">
+          Mensaje
+        </label>
         <textarea
           id="chat-input"
           ref={ref}
@@ -66,33 +82,23 @@ export function Composer({ onSend, onFocus }: { onSend: (text: string) => void; 
             }
           }}
           aria-invalid={tooLong || undefined}
+          aria-describedby={nearLimit ? "chat-input-count" : undefined}
           className={cn(
-            "block max-h-32 min-h-11 w-full resize-none rounded-[1.375rem] border border-border bg-card px-4 py-2.5 text-base leading-snug outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
-            tooLong && "border-destructive",
+            "block max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-[1.375rem] border border-border bg-card px-4 py-2.5 text-base leading-snug outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30",
+            tooLong && "border-destructive focus-visible:border-destructive focus-visible:ring-destructive/30",
           )}
         />
-        {trimmed.length > MESSAGE_MAX_LENGTH - 200 ? (
-          <span
-            aria-live="polite"
-            className={cn(
-              "absolute -top-5 right-3 text-xs tabular-nums",
-              tooLong ? "text-destructive" : "text-muted-foreground",
-            )}
-          >
-            {trimmed.length}/{MESSAGE_MAX_LENGTH}
-          </span>
-        ) : null}
+        <button
+          type="submit"
+          aria-label="Enviar"
+          disabled={!canSend}
+          // Sin esto, pulsar el botón quita el foco y el teclado de iOS se cierra tras cada mensaje.
+          onPointerDown={(event) => event.preventDefault()}
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[opacity,transform] active:scale-90 disabled:opacity-40"
+        >
+          <ArrowUp className="size-5" strokeWidth={2.4} aria-hidden />
+        </button>
       </div>
-      <button
-        type="submit"
-        aria-label="Enviar"
-        disabled={!canSend}
-        // Sin esto, pulsar el botón quita el foco y el teclado de iOS se cierra tras cada mensaje.
-        onPointerDown={(event) => event.preventDefault()}
-        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[opacity,transform] active:scale-90 disabled:opacity-40"
-      >
-        <ArrowUp className="size-5" strokeWidth={2.4} aria-hidden />
-      </button>
     </form>
   );
 }
