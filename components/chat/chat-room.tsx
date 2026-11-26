@@ -42,6 +42,12 @@ export function ChatRoom({ view }: { view: ConversationView }) {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [olderError, setOlderError] = useState(false);
   const [unseen, setUnseen] = useState(false);
+  // Si el servidor vuelve a pintar la sala (p. ej. al entrar de nuevo), sus mensajes se suman a los que hay.
+  const [seenInitial, setSeenInitial] = useState(view.initial);
+  if (view.initial !== seenInitial) {
+    setSeenInitial(view.initial);
+    setMessages((current) => mergeMessages(current, view.initial.messages));
+  }
 
   const rootRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,8 +101,21 @@ export function ChatRoom({ view }: { view: ConversationView }) {
       .catch(() => undefined);
   }
 
-  // Leído al abrir; al volver a la app, ponerse al día (cubre también que Pusher no esté disponible).
-  const onOpen = useEffectEvent(markRead);
+  // Next conserva la pantalla oculta con <Activity> al salir (el estado y los mensajes se quedan
+  // como estaban y la suscripción de Pusher se corta). Al volver a mostrarse, los efectos se
+  // montan otra vez: la primera vez basta con marcar leído; las siguientes hay que ponerse al día.
+  const shownBeforeRef = useRef(false);
+  useLayoutEffect(() => {
+    // `display: none` pierde el scroll: se vuelve al final si se estaba ahí.
+    if (atBottomRef.current) scrollToBottom();
+  }, []);
+
+  // Leído al abrir; al volver a la pantalla o a la app, ponerse al día (cubre también que Pusher no esté disponible).
+  const onOpen = useEffectEvent(() => {
+    if (shownBeforeRef.current) catchUp();
+    else markRead();
+    shownBeforeRef.current = true;
+  });
   const onReturn = useEffectEvent(catchUp);
   useEffect(() => {
     onOpen();
