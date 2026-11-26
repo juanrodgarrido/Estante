@@ -15,7 +15,6 @@ function measure(): string[] {
     `screen: ${screen.width} x ${screen.height}`,
     `visualViewport: ${window.visualViewport?.width} x ${window.visualViewport?.height}`,
     `safe T/R/B/L: ${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`,
-    `viewport-gap: ${getComputedStyle(document.documentElement).getPropertyValue("--viewport-gap")}`,
     `nav: top ${nr?.top.toFixed(0)} bottom ${nr?.bottom.toFixed(0)} h ${nr?.height.toFixed(0)}`,
     `standalone: ${window.matchMedia("(display-mode: standalone)").matches} / ${(navigator as Navigator & { standalone?: boolean }).standalone}`,
   ];

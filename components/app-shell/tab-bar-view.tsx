@@ -28,9 +28,7 @@ export function TabBarView({ pathname }: { pathname: string | null }) {
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"
-      style={{ bottom: "calc(var(--viewport-gap) * -1)" }}
-    >
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"    >
       <ul
         className="mx-auto grid max-w-xl grid-cols-4 px-2"
         style={{
