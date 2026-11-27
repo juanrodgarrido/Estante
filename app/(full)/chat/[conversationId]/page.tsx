@@ -28,7 +28,7 @@ async function Room({ params }: { params: Promise<{ conversationId: string }> })
 
 function RoomSkeleton() {
   return (
-    <div aria-hidden className="fixed inset-0 flex flex-col bg-background">
+    <div aria-hidden className="fixed inset-0 flex flex-col bg-background" style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}>
       <div className="border-b border-border pt-safe">
         <div className="mx-auto flex h-14 max-w-xl items-center gap-2.5 px-gutter">
           <span className="size-9 animate-pulse rounded-full bg-muted" />

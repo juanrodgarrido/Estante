@@ -9,6 +9,7 @@ import { FriendButton } from "@/components/friends/friend-button";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStatsGrid } from "@/components/profile/profile-stats";
 import { ShelfTabs } from "@/components/shelf/shelf-tabs";
+import { ProfileSkeleton } from "@/components/ui/skeletons";
 import { getCurrentUser } from "@/server/auth";
 import { getOtherProfile } from "@/server/profile/visibility";
 
@@ -16,7 +17,13 @@ export const metadata: Metadata = { title: "Perfil de lector" };
 
 async function OtherProfile({ params }: { params: Promise<{ username: string }> }) {
   const [{ username }, me] = await Promise.all([params, getCurrentUser()]);
-  const other = await getOtherProfile(me.id, decodeURIComponent(username));
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(username);
+  } catch {
+    notFound();
+  }
+  const other = await getOtherProfile(me.id, decoded);
   if (!other) notFound();
   if (other.profile.id === me.id) redirect("/perfil");
 
@@ -64,7 +71,7 @@ export default function UsuarioPage({ params }: { params: Promise<{ username: st
   return (
     <>
       <ScreenHeader title="Perfil" backHref="/amigos" />
-      <Suspense fallback={<div aria-hidden className="mx-gutter h-48 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<ProfileSkeleton />}>
         <OtherProfile params={params} />
       </Suspense>
     </>

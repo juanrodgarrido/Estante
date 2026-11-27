@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { searchQuerySchema } from "@/lib/validation/books";
+import { allowRequest } from "@/lib/rate-limit";
 import { getOptionalUser } from "@/server/auth";
 import { searchBooks } from "@/server/books/search";
 
@@ -7,6 +8,10 @@ export async function GET(request: NextRequest) {
   const user = await getOptionalUser();
   if (!user) {
     return NextResponse.json({ error: "Inicia sesión para buscar libros." }, { status: 401 });
+  }
+
+  if (!(await allowRequest(`book-search:${user.id}`, 40, 60))) {
+    return NextResponse.json({ error: "Demasiadas búsquedas. Espera un momento." }, { status: 429 });
   }
 
   const { searchParams } = request.nextUrl;

@@ -5,6 +5,7 @@ import { ScreenHeader } from "@/components/app-shell/screen-header";
 import { OpenConversationButton } from "@/components/chat/open-conversation-button";
 import { EmptyState } from "@/components/empty-state";
 import { UserRow } from "@/components/friends/user-row";
+import { RowsSkeleton } from "@/components/ui/skeletons";
 import { getCurrentUser } from "@/server/auth";
 import { listFriends } from "@/server/friends/repository";
 
@@ -36,7 +37,7 @@ export default function NuevaConversacionPage() {
   return (
     <>
       <ScreenHeader title="Nueva conversación" eyebrow="Tus amistades" backHref="/chat" />
-      <Suspense fallback={<div aria-hidden className="mx-gutter h-40 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<RowsSkeleton />}>
         <Friends />
       </Suspense>
     </>

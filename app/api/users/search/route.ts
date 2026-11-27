@@ -1,11 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { userSearchSchema } from "@/lib/validation/friends";
+import { allowRequest } from "@/lib/rate-limit";
 import { getOptionalUser } from "@/server/auth";
 import { searchUsers } from "@/server/friends/repository";
 
 export async function GET(request: NextRequest) {
   const user = await getOptionalUser();
   if (!user) return NextResponse.json({ error: "Inicia sesión para buscar personas." }, { status: 401 });
+
+  if (!(await allowRequest(`user-search:${user.id}`, 40, 60))) {
+    return NextResponse.json({ error: "Demasiadas búsquedas. Espera un momento." }, { status: 429 });
+  }
 
   const parsed = userSearchSchema.safeParse({ q: request.nextUrl.searchParams.get("q") ?? "" });
   if (!parsed.success) {

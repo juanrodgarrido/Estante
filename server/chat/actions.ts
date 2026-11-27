@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { ObjectId } from "mongodb";
+import { allowRequest } from "@/lib/rate-limit";
 import { conversationIdSchema, sendMessageSchema } from "@/lib/validation/chat";
 import { targetUserSchema } from "@/lib/validation/friends";
 import { getCurrentUser } from "@/server/auth";
@@ -28,6 +29,9 @@ export async function sendMessageAction(input: unknown): Promise<SendMessageResu
   const parsed = sendMessageSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
   const { conversationId, text, clientId } = parsed.data;
+  if (!(await allowRequest(`message:${me.id}`, 30, 60))) {
+    return { ok: false, error: "Estás enviando demasiados mensajes. Espera un momento." };
+  }
 
   let message: ChatMessage;
   let otherId: string;

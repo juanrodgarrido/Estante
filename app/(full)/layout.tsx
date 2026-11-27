@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { AuthGate } from "@/components/auth/auth-gate";
 
 export default function FullLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +7,9 @@ export default function FullLayout({ children }: { children: React.ReactNode }) 
       <Suspense fallback={null}>
         <AuthGate />
       </Suspense>
-      {children}
+      <ViewTransition enter="page-fade" exit="page-fade" default="none">
+        {children}
+      </ViewTransition>
     </>
   );
 }

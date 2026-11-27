@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
 import { AuthGate } from "@/components/auth/auth-gate";
 import { TabBarWithBadges } from "@/components/app-shell/tab-bar-with-badges";
 import { TabBarView } from "@/components/app-shell/tab-bar-view";
@@ -9,7 +9,11 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       <Suspense fallback={null}>
         <AuthGate />
       </Suspense>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col pb-tabbar">{children}</main>
+      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col pb-tabbar">
+        <ViewTransition enter="page-fade" exit="page-fade" default="none">
+          {children}
+        </ViewTransition>
+      </main>
       {/* La ruta activa solo se conoce en la petición: la barra se pinta ya y marca la pestaña después. */}
       <Suspense fallback={<TabBarView pathname={null} />}>
         <TabBarWithBadges />

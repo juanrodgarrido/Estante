@@ -5,7 +5,8 @@ import { nextCookies } from "better-auth/next-js";
 import { username } from "better-auth/plugins";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { getDbSync, getMongoClient } from "@/lib/db";
-import { signUpSchema, usernameSchema } from "@/lib/validation/auth";
+import { z } from "zod";
+import { nameSchema, signUpSchema, usernameSchema } from "@/lib/validation/auth";
 
 const DAY = 60 * 60 * 24;
 
@@ -38,10 +39,20 @@ function createAuth() {
     hooks: {
       // Validación en el servidor con los mismos esquemas Zod que el cliente.
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/update-user") {
+          // Nombre y bio se editan por Server Actions; el avatar, por /api/avatar. Aquí solo se admite el nombre.
+          const result = z.object({ name: nameSchema.optional() }).strict().safeParse(ctx.body);
+          if (!result.success) throw new APIError("BAD_REQUEST", { message: "Datos no válidos" });
+          return;
+        }
         if (ctx.path !== "/sign-up/email") return;
         const result = signUpSchema.safeParse(ctx.body);
         if (!result.success) {
           throw new APIError("BAD_REQUEST", { message: result.error.issues[0].message });
+        }
+        // Sin campos extra (p. ej. `image` con una URL externa).
+        if (Object.keys(ctx.body ?? {}).some((key) => !["name", "username", "email", "password", "callbackURL"].includes(key))) {
+          throw new APIError("BAD_REQUEST", { message: "Datos no válidos" });
         }
       }),
     },

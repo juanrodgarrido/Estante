@@ -5,6 +5,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { AvatarEditor } from "@/components/profile/avatar-editor";
 import { ChangePasswordForm } from "@/components/profile/change-password-form";
 import { EditProfileForm } from "@/components/profile/edit-profile-form";
+import { FormSkeleton } from "@/components/ui/skeletons";
 import { getCurrentUser } from "@/server/auth";
 
 export const metadata: Metadata = { title: "Ajustes" };
@@ -32,7 +33,7 @@ export default function AjustesPage() {
   return (
     <>
       <ScreenHeader title="Ajustes" backHref="/perfil" />
-      <Suspense fallback={<div aria-hidden className="mx-gutter h-64 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<FormSkeleton />}>
         <Settings />
       </Suspense>
     </>

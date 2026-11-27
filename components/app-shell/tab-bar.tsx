@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { markInAppNavigation } from "@/lib/in-app-nav";
 import { useChannelEvent, userChannel } from "@/lib/pusher-client";
 import { TabBarView } from "./tab-bar-view";
 
@@ -48,6 +49,7 @@ export function TabBar({ badges, userId = null, unread = 0 }: TabBarProps) {
       firstRender.current = false;
       return;
     }
+    markInAppNavigation();
     if (!userId) return;
     void fetchUnread().then((total) => {
       if (total !== null) setCount(total);

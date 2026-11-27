@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { hasInAppHistory } from "@/lib/in-app-nav";
 
 /** Vuelve a la pantalla anterior (Inicio, Buscar, Perfil…); sin historial, va a `fallbackHref`. */
 export function BackButton({ fallbackHref }: { fallbackHref: string }) {
@@ -10,7 +11,7 @@ export function BackButton({ fallbackHref }: { fallbackHref: string }) {
     <button
       type="button"
       aria-label="Volver"
-      onClick={() => (window.history.length > 1 ? router.back() : router.push(fallbackHref))}
+      onClick={() => (hasInAppHistory() ? router.back() : router.replace(fallbackHref))}
       className="-ml-3 flex size-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted active:scale-95"
     >
       <ChevronLeft className="size-6" aria-hidden />

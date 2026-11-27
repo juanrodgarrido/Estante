@@ -13,7 +13,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 6 — `perfil`: perfil propio y estadísticas
 - [x] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
 - [x] Sesión 8 — `chat`: mensajes en tiempo real
-- [ ] Sesión 9 — `pulido`: PWA offline, rendimiento y revisión final
+- [x] Sesión 9 — `pulido`: PWA offline, rendimiento y revisión final (sin el punto 3b, pantallas grandes: sigue pendiente)
 - [ ] Sesión 10 (opcional) — `extras`: notificaciones push, reseñas, objetivo anual
 
 ## Decisiones tomadas
@@ -111,6 +111,17 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Paginación**: 30 mensajes por página, cursor `<ms>_<id>` (`?before=`), carga al acercarse arriba conservando la posición.
 - **Dependencias nuevas**: `pusher` (servidor) y `pusher-js` (cliente), las oficiales. Sin variables nuevas (el servidor usa `NEXT_PUBLIC_PUSHER_CLUSTER`). **Añadir `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY` y `NEXT_PUBLIC_PUSHER_CLUSTER` en Vercel y redeploy.**
 - **Pruebas** como en la Sesión 7: acciones por HTTP con el id del manifest, `POST` a `/chat/<id>` (envío y leído) o `/chat/nueva` (abrir). Para probar en otro puerto: `BETTER_AUTH_URL=http://localhost:3100 npx next start -p 3100` (Better Auth rechaza otros orígenes).
+
+### Decisiones de la Sesión 9 (`pulido`)
+
+- **Service worker propio** (`public/sw.js`, sin dependencias): `@serwist/next` no funciona con Turbopack y la alternativa añadía dependencias. Estrategia: precache de `/offline` e iconos; `/_next/static` (JS, CSS, fuentes) cache-first; portadas (`/_next/image` y dominios de portadas) stale-while-revalidate con tope de 200; navegaciones red primero y, sin red, `/offline`. **Nunca** guarda HTML de páginas, `/api/*`, RSC ni Server Actions. **Al cambiar `sw.js` hay que subir `VERSION`** (limpia las cachés antiguas). Se registra solo en producción (`components/pwa/register-sw.tsx`). `/sw.js` se sirve sin caché y `next.config.ts` añade cabeceras de seguridad globales. `/offline` es pública en `proxy.ts`.
+- **`experimental.useOffline`** activado: navegaciones y Server Actions esperan a que vuelva la red en vez de fallar, y `OfflineBanner` (root layout) avisa. No se ha podido probar el modo avión en el iPhone: **pendiente de probar** (borrar la PWA y reinstalarla).
+- **Pantallas**: `Skeleton` y `RowsSkeleton`/`ProfileSkeleton`/`FormSkeleton` (`components/ui/`); `app/not-found.tsx`, `not-found.tsx` de `/u/[username]` y de la sala de chat, `error.tsx` en `(tabs)` y `(full)`, `app/global-error.tsx`. `<ViewTransition>` (React, sin flag) en los layouts `(tabs)` y `(full)` con un fundido corto (`.page-fade` en `globals.css`); la barra inferior queda fuera. No se han añadido `transitionTypes` direccionales.
+- **iOS**: `overscroll-behavior: none` en `html`, `overscroll-x-contain` en las filas de portadas, `-webkit-touch-callout: none` en botones y enlaces, safe areas en el esqueleto de la sala y en `(auth)`. `BackButton` usa `hasInAppHistory()` (`lib/in-app-nav.ts`: la barra inferior anota en `sessionStorage` que ha habido navegación dentro de la app) en vez de `history.length`; sin historial propio hace `router.replace(fallbackHref)`.
+- **Índices**: `npm run db:indexes` (`scripts/db-indexes.mts`, Node 24 sin compilar, lee `.env.local`) crea los del plan más `user.username` único (Better Auth no lo crea); los de email, sesión y cuenta ya los crea Better Auth. Las especificaciones deben seguir coincidiendo con las de los repositorios de `server/`.
+- **Rendimiento**: `priority` → `preload` en la portada grande; quitado `"use client"` de `label.tsx` y `star-rating.tsx`.
+- **Seguridad** (revisión por subagente de todas las acciones y handlers; privacidad, IDOR, inyección NoSQL y datos al cliente estaban bien). Corregido: (1) `/api/auth/update-user` aceptaba `image` arbitraria y nombres sin límite, y el registro admitía campos extra → el hook `before` de `lib/auth.ts` solo admite `name` (validado) en `update-user` y rechaza campos extra en el registro; (2) la ficha de libro consultaba APIs externas antes de validar la sesión (el proxy solo mira que exista la cookie) → `getCurrentUser()` va primero; (3) límites de uso con `allowRequest` (`lib/rate-limit.ts`, colección `rateLimits` con TTL): 40 búsquedas/min de libros y de personas y 30 mensajes/min; (5) `decodeURIComponent` en `/u/[username]` daba error 500 con %-secuencias inválidas → 404. **Pendiente, bajo riesgo**: una suscripción de Pusher ya autorizada sigue recibiendo mensajes nuevos tras eliminar la amistad hasta que el cliente se reconecta (no puede enviar ni leer el historial); se arreglaría publicando un evento en el canal del usuario para que se desuscriba. Sin `Content-Security-Policy` (no hay HTML inyectado; defensa en profundidad para más adelante). Confirmar en producción que el rate limit de Better Auth toma la IP de `x-forwarded-for`.
+- Sin dependencias ni variables de entorno nuevas.
 
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 

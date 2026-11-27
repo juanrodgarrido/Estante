@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans } from "next/font/google";
+import { OfflineBanner } from "@/components/pwa/offline-banner";
+import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -44,7 +46,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${fraunces.variable} ${instrumentSans.variable} h-full`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <OfflineBanner />
+        <RegisterServiceWorker />
+        {children}
+      </body>
     </html>
   );
 }

@@ -8,6 +8,7 @@ import { FriendsLink, FriendsLinkFallback } from "@/components/friends/friends-l
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStatsGrid } from "@/components/profile/profile-stats";
 import { ShelfTabs } from "@/components/shelf/shelf-tabs";
+import { ProfileSkeleton } from "@/components/ui/skeletons";
 import { getCurrentUser } from "@/server/auth";
 import { getProfileStats } from "@/server/profile/repository";
 import { listShelf } from "@/server/shelf/repository";
@@ -59,7 +60,7 @@ export default function PerfilPage({ searchParams }: { searchParams: Promise<{ e
           </>
         }
       />
-      <Suspense fallback={<div aria-hidden className="mx-gutter h-64 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<ProfileSkeleton />}>
         <Profile searchParams={searchParams} />
       </Suspense>
     </>

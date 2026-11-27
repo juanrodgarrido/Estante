@@ -47,7 +47,7 @@ export function BookCover({ title, author, coverUrl, size = "sm", sizes, classNa
           alt={`Portada de ${title}`}
           fill
           sizes={sizes ?? (large ? "192px" : "64px")}
-          priority={large}
+          preload={large}
           className="object-cover"
           onError={() => setFailedUrl(coverUrl)}
         />

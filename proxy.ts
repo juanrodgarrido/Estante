@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
-const PUBLIC_PATHS = ["/login", "/registro"];
+const PUBLIC_PATHS = ["/login", "/registro", "/offline"];
 
 // Comprobación optimista (solo mira que exista la cookie). La validación real
 // de la sesión la hace `AuthGate` en el servidor.

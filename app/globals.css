@@ -158,6 +158,7 @@
 
   html {
     @apply font-sans;
+    overscroll-behavior: none;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
     text-rendering: optimizeLegibility;
@@ -189,6 +190,8 @@
   button,
   a {
     touch-action: manipulation;
+    /* Sin el menú de mantener pulsado de iOS sobre botones y enlaces */
+    -webkit-touch-callout: none;
   }
 }
 
@@ -204,7 +207,31 @@
   }
 }
 
+/* Transición suave entre pantallas (<ViewTransition> en los layouts) */
+::view-transition-old(.page-fade) {
+  animation: page-fade-out 120ms ease-out both;
+}
+::view-transition-new(.page-fade) {
+  animation: page-fade-in 200ms ease-out 60ms both;
+}
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
   *,
   ::before,
   ::after {

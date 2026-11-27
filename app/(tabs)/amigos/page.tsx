@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/empty-state";
 import { FriendButton } from "@/components/friends/friend-button";
 import { UserRow } from "@/components/friends/user-row";
 import { UserSearch } from "@/components/friends/user-search";
+import { RowsSkeleton } from "@/components/ui/skeletons";
 import { getCurrentUser } from "@/server/auth";
 import { listFriends, listIncoming, listOutgoing } from "@/server/friends/repository";
 import type { UserSummary } from "@/types/friends";
@@ -78,7 +79,7 @@ export default function AmigosPage() {
     <>
       <ScreenHeader title="Amistades" backHref="/perfil" />
       <UserSearch />
-      <Suspense fallback={<div aria-hidden className="mx-gutter h-40 animate-pulse rounded-xl bg-muted" />}>
+      <Suspense fallback={<RowsSkeleton />}>
         <Lists />
       </Suspense>
     </>

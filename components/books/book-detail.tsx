@@ -28,9 +28,10 @@ function formatDate(raw: string): string {
 
 export async function BookDetail({ id }: { id: string }) {
   if (!bookIdSchema.safeParse(id).success) notFound();
+  // Primero la sesión: sin ella no se consultan las APIs externas ni se escribe en `books`.
+  const user = await getCurrentUser();
   const book = await getBook(id);
   if (!book) notFound();
-  const user = await getCurrentUser();
   const shelf = await getShelfState(user.id, book._id);
 
   const details = [

@@ -37,7 +37,7 @@ export function CoverRow({
           {emptyText}
         </p>
       ) : (
-      <ul className="flex snap-x gap-4 overflow-x-auto px-gutter pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul className="flex snap-x gap-4 overflow-x-auto overscroll-x-contain px-gutter pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {entries.map((entry) => (
           <li key={entry.bookId} className="w-24 shrink-0 snap-start">
             <Link href={`/libro/${entry.publicId}`} aria-label={entry.title} className="block active:opacity-80">
