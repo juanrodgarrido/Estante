@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { NoScrollGutter } from "@/components/app-shell/no-scroll-gutter";
 import { TabBarView } from "@/components/app-shell/tab-bar-view";
 import { TabBarWithBadges } from "@/components/app-shell/tab-bar-with-badges";
 import { CHAT_LIST_PANE, ChatListPane } from "@/components/chat/chat-list-pane";
@@ -14,6 +15,7 @@ const MD = "(min-width: 48rem)";
 export default function ChatRoomsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <NoScrollGutter />
       <div className="hidden md:block">
         <Suspense fallback={<TabBarView pathname={null} />}>
           <TabBarWithBadges media={MD} />

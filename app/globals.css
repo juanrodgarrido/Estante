@@ -172,6 +172,21 @@
     text-rendering: optimizeLegibility;
   }
 
+  /*
+   * Escritorio: reserva siempre el hueco de la barra de scroll para que el contenido centrado no
+   * se desplace al pasar de una pantalla corta a una larga (p. ej. pestañas del perfil vacías o
+   * llenas). En móvil las barras flotan, así que desde md. La sala de chat es `fixed` y no hace
+   * scroll: `NoScrollGutter` marca `data-fullscreen` mientras está visible para no dejar una franja.
+   */
+  @media (min-width: 48rem) {
+    html {
+      scrollbar-gutter: stable;
+    }
+    html[data-fullscreen] {
+      scrollbar-gutter: auto;
+    }
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     min-height: 100dvh;
