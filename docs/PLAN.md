@@ -4,7 +4,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 
 ## Estado
 
-- [ ] Sesión 0 — Preparación (manual, sin Claude Code)
+- [x] Sesión 0 — Preparación (manual, sin Claude Code)
 - [x] Sesión 1 — `base`: estructura, diseño y PWA
 - [x] Sesión 2 — `deploy`: despliegue en Vercel (pasos en el README; el despliegue lo hace Juan a mano)
 - [x] Sesión 3 — `auth`: registro, login y sesión
@@ -14,7 +14,9 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 7 — `amigos`: solicitudes y perfiles de amigos
 - [x] Sesión 8 — `chat`: mensajes en tiempo real
 - [x] Sesión 9 — `pulido`: PWA offline, rendimiento, revisión final y pantallas grandes (punto 3b)
-- [ ] Sesión 10 (opcional) — `extras`: notificaciones push, reseñas, objetivo anual
+- [ ] Sesión 10a — `notificaciones`: push y número de no leídos en el icono
+- [x] Sesión 10b — `resenas`: reseñas de libros para amigos
+- [ ] Sesión 10c — `objetivo`: reto de lectura anual
 
 ## Decisiones tomadas
 
@@ -126,6 +128,17 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Chat en dos paneles**: `ChatListPane` (`components/chat/chat-list-pane.tsx`) es la pantalla `/chat` y, desde `md`, un panel `fixed` (`CHAT_LIST_PANE`) entre la barra y la sala. `/chat` muestra «Elige una conversación» a la derecha. Nuevo `app/(full)/chat/layout.tsx` (solo `/chat/[id]`, persiste al cambiar de conversación): monta, ocultos en móvil con `display: none`, la barra lateral y la lista. Para que en móvil no hagan trabajo extra, `TabBar` y `LiveRefresh` aceptan `media` (`useMediaQuery`, `lib/use-media-query.ts`) y fuera de ella no se suscriben a Pusher, no piden no leídos ni refrescan; el coste que queda es que el servidor calcula esa lista y esos badges aunque no se vean (en su `<Suspense>`, sin bloquear la sala). `ChatRoom` sigue `fixed` y siguiendo el `visualViewport` (sin cambios en móvil; solo `md:left-[var(--chat-left)]`, el padding de safe areas pasa de `style` a clases y `md:max-w-3xl`); «Volver» se oculta en `md`. `ConversationLink` marca la conversación abierta (`aria-current`). **Cualquier pantalla `fixed` nueva debe desplazarse con `md:left-…` para no quedar bajo la barra.** El banner offline no cambia (fijo arriba, ancho completo, `z-50`).
 - **Pendiente de probar**: no se ha podido ver en un navegador (sin sesión de prueba); solo typecheck, lint y build. Revisar a 390, 768 y 1280 px y el teclado del chat en el iPhone.
 
+### Decisiones de la Sesión 10b (`resenas`)
+
+- **Datos**: `userBooks.review { text, hasSpoilers, createdAt, updatedAt }`, solo con `status: "read"`. Pasar a Leyendo/Pendiente (o quitar el libro) la borra. Sin índices nuevos: la consulta de amigos usa `{userId, bookId}`.
+- **Acciones** (`server/shelf/actions.ts`): `setReviewAction` (crea/edita; actualización con pipeline para conservar `createdAt` de forma atómica y `$literal` para que un texto que empiece por «$» no se evalúe como expresión) y `deleteReviewAction`; ambas filtran por `userId` de la sesión y `status: "read"`. `setShelfStatusAction` acepta `review` opcional al pasar a Leído (panel de «Lo he terminado» de Inicio).
+- **Confirmación al perder la reseña**: la exige también el servidor, no solo la UI. Sacar de Leídos o quitar de la estantería un libro con reseña devuelve error salvo que llegue `discardReview: true`. `ShelfControl` pide la confirmación inline antes de enviarlo. En la ficha, «Lo he terminado» y pasar de Pendiente a Leído siguen yendo directos (sin panel); la reseña se escribe después con «Escribir reseña».
+- **Reseñas de amigos**: `listFriendReviews(me, bookId)` (`server/shelf/reviews.ts`) filtra por `listFriendIds(me)` en la propia consulta (como la actividad); incluye amigos con nota aunque no tengan texto, orden por fecha de la reseña (o de la nota), máx. 50. No hay ruta API de reseñas: solo la ficha (con sesión) y las acciones propias, así que quien no es amigo no puede obtenerlas. El texto de una reseña con spoilers sí viaja al cliente de un amigo (se difumina solo en pantalla).
+- **Actividad**: tipo `reviewed`. La actividad **no guarda el texto**: el extracto (160 caracteres y 2 líneas, sin spoilers) se lee de la reseña actual al listar, así que editar dentro de los 15 min no crea otra entrada (`recordReviewActivity`) y un cambio posterior a «spoilers» deja de mostrar el extracto al instante. Una reseña sin cambios no genera actividad. Borrar la reseña o sacar el libro de Leídos borra los `reviewed` (`clearReviewActivity`); los `reviewed` cuya reseña ya no existe se omiten. La fusión de notas (`rated`) ahora solo mira `finished`/`rated` previos, no `reviewed`.
+- **UI**: `components/reviews/` (`ReviewFields`, `ReviewEditor`, `MyReview`, `FriendReviews`, `ReviewMark`). La marca de reseña (`hasReview` en `ShelfEntry`; el texto no viaja en las listas) sale en las portadas de Leídos de `ShelfTabs` (propia y de amigos) y de `CoverRow`. «Leer más» aparece con más de 280 caracteres o 5 líneas; fechas de las reseñas en `Europe/Madrid`.
+- **Pendiente de probar**: sin sesión de prueba, solo typecheck, lint y build. Comprobar con dos cuentas amigas: escribir/editar/borrar, la ficha del amigo, el extracto en Inicio y el difuminado con spoilers; y que una cuenta no amiga no ve nada.
+- Sin dependencias ni variables de entorno nuevas.
+
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
 ---
@@ -172,6 +185,7 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
   currentPage?: number,
   startedAt?: Date,
   finishedAt?: Date,
+  review?: { text: string, hasSpoilers: boolean, createdAt: Date, updatedAt: Date },  // máx. 2000; solo con status "read"
   createdAt: Date,
   updatedAt: Date,
 }
@@ -194,7 +208,7 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
   _id,
   userId: ObjectId,
   bookId: ObjectId,
-  type: "started" | "finished" | "rated",
+  type: "started" | "finished" | "rated" | "reviewed",
   rating?: 1 | 2 | 3 | 4 | 5,
   createdAt: Date,
 }
@@ -510,12 +524,98 @@ Hecho cuando: la app funciona sin conexión mostrando la página offline, el rev
 
 ---
 
-## Sesión 10 (opcional) — `extras`
+## Sesión 10a — `notificaciones`
 
-Ideas para después, una sesión por cada una:
+**Modelo:** `opusplan` · **Empieza en modo plan**
 
-- **Notificaciones push** de mensajes nuevos y solicitudes de amistad (funcionan en iOS 16.4 o superior solo con la PWA añadida a la pantalla de inicio). Requiere Web Push con claves VAPID.
-- **Reseñas** de texto en los libros leídos, visibles para amigos.
-- **Objetivo de lectura anual** con progreso en Inicio.
+**Antes de empezar:** nada. Claude generará las claves VAPID; tú solo tendrás que copiarlas en Vercel al final.
+
+**Prompt:**
+
+```
+Lee CLAUDE.md y docs/PLAN.md (sobre todo las decisiones de las Sesiones 8 y 9). Vamos con la Sesión 10a (notificaciones).
+
+Quiero notificaciones push y el número de no leídos sobre el icono de la app, en el iPhone (PWA añadida a la pantalla de inicio, iOS 16.4 o superior) y en el ordenador (Chrome, Edge, Firefox y Safari). Usa Web Push estándar con claves VAPID.
+
+1. Claves y envío: genera las claves VAPID y añade a .env.example NEXT_PUBLIC_VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY y VAPID_SUBJECT (mailto: con OPENLIBRARY_CONTACT_EMAIL o similar). Escribe tú las claves en .env.local. Para enviar, usa la librería web-push (justifica la dependencia). Sin las variables, la app debe funcionar igual y simplemente no enviar nada.
+2. Suscripciones: colección pushSubscriptions (userId, endpoint único, keys, etiqueta del dispositivo sacada del user agent, createdAt, lastUsedAt). Un usuario puede tener varios dispositivos. Si el servicio de push responde 404 o 410, borra esa suscripción. Al cerrar sesión, borra la suscripción de ese dispositivo.
+3. Service worker: amplía public/sw.js (sube VERSION) con los eventos push y notificationclick. Al tocar la notificación, enfoca la ventana abierta de la app y navega a la URL del aviso, o abre una nueva si no hay ninguna. Al recibir un push, actualiza el número del icono con navigator.setAppBadge usando el total de no leídos que viene en el payload.
+4. Qué se notifica y cuándo:
+   - Mensaje nuevo: título con el nombre de quien escribe, cuerpo con el principio del mensaje, abre /chat/<id>. No se envía si el destinatario tiene esa conversación abierta y visible en ese momento. Comprueba si en iOS cada push tiene que mostrar una notificación obligatoriamente (Safari puede revocar la suscripción si no); si es así, esta decisión se toma en el servidor antes de enviar, no en el service worker. Propón cómo saber en el servidor que la conversación está abierta (por ejemplo, un latido mientras la sala está visible).
+   - Solicitud de amistad recibida: abre /amigos.
+   - Solicitud aceptada: abre /u/<username>.
+   - Agrupa con la opción tag de las notificaciones para que varios mensajes seguidos de la misma conversación no llenen la pantalla de avisos.
+   El envío no debe retrasar la respuesta de la acción (usa after() de Next.js si encaja) y nunca debe romperla si falla, igual que publish() de Pusher.
+5. Número del icono: además del push, mantenlo sincronizado desde la app abierta. Donde hoy se actualiza el badge de la pestaña Chat (evento unread-changed y al volver a la app), llama también a setAppBadge o clearAppBadge con el total de no leídos. Comprueba siempre que la API existe antes de usarla.
+6. Ajustes: apartado «Notificaciones» en /ajustes.
+   - Botón «Activar en este dispositivo». El permiso solo se pide al tocar ese botón, nunca al abrir la app.
+   - Si es un iPhone en Safari sin instalar (no standalone), en vez del botón explica cómo añadir la app a la pantalla de inicio.
+   - Si el permiso está denegado, explica cómo activarlo en los ajustes del sistema.
+   - Interruptores por tipo (mensajes, solicitudes, solicitudes aceptadas), guardados por usuario y respetados en el servidor al enviar.
+   - Lista de dispositivos con notificaciones activas y opción de quitar cada uno.
+7. Privacidad: ningún aviso a quien no sea amigo, comprobando areFriends al enviar los de chat, igual que en el resto del chat.
+
+Hecho cuando: en local, con npm run build y npm start (el service worker solo se registra en producción), en Chrome de escritorio puedo activar las notificaciones, recibo un aviso al escribirme desde otra cuenta, el aviso me lleva a la conversación y no recibo nada si tengo esa conversación abierta. typecheck, lint y build pasan. Dime exactamente qué variables tengo que añadir en Vercel y qué tengo que probar en el iPhone. Marca la sesión en el plan y anota las decisiones.
+```
+
+**Comprobación tuya:**
+1. Añade las tres variables VAPID en Vercel y haz redeploy.
+2. En el iPhone, borra la app de la pantalla de inicio y vuelve a añadirla, para que coja el service worker nuevo.
+3. Abre la app, ve a Ajustes y activa las notificaciones.
+4. Bloquea el iPhone y escríbete desde otra cuenta. Debe llegar el aviso a la pantalla de bloqueo y aparecer el número sobre el icono.
+5. Abre la conversación. El número debe desaparecer.
+
+---
+
+## Sesión 10b — `resenas`
+
+**Modelo:** `sonnet` · modo automático
+
+**Prompt:**
+
+```
+Lee CLAUDE.md y docs/PLAN.md (sobre todo las decisiones de las Sesiones 5, 7 y 9). Vamos con la Sesión 10b (resenas).
+
+Reseñas de texto en los libros leídos, visibles solo para amigos:
+1. Datos: añade a userBooks un campo review { text (máximo 2000 caracteres), hasSpoilers (boolean), createdAt, updatedAt }. Solo puede existir en libros con estado "read". Server Actions para guardar, editar y borrar la reseña, con Zod, getCurrentUser() y filtro por userId de la sesión, como el resto de acciones de la estantería.
+2. Al sacar un libro de Leídos se perderían la nota y la reseña: si tiene reseña, pide confirmación antes de moverlo.
+3. Escribir: en el panel que aparece al marcar un libro como leído (el de la valoración con estrellas), añade un campo opcional «Escribe tu reseña» y la casilla «Contiene spoilers». En la ficha del libro, si ya está en Leídos, un botón para escribir o editar la reseña.
+4. Leer en la ficha del libro (/libro/[id]), debajo de la descripción:
+   - «Tu reseña», con opción de editar o borrar.
+   - «Lo que opinan tus amigos»: reseñas y notas de mis amigos aceptados que han leído ese libro, con avatar, nombre, estrellas y fecha, de la más reciente a la más antigua. Las que tienen spoilers aparecen difuminadas con un botón «Mostrar». Textos largos recortados con «Leer más».
+   - El filtro por amistad se hace en la consulta, igual que la actividad.
+5. Actividad: nuevo tipo "reviewed" en activities, con un extracto en Inicio («Marta ha reseñado Dune» y las primeras líneas, sin extracto si tiene spoilers). Editar la reseña en los 15 minutos siguientes actualiza la entrada en vez de crear otra, igual que con las notas. Borrar la reseña borra su actividad.
+6. Perfil: en la pestaña Leídos, propia y de amigos, marca pequeña en las portadas de los libros con reseña.
+
+Hecho cuando: puedo escribir, editar y borrar una reseña; un amigo la ve en la ficha y en su Inicio; alguien que no es amigo no la ve ni llamando a las rutas directamente. typecheck, lint y build pasan. Marca la sesión y anota las decisiones.
+```
+
+---
+
+## Sesión 10c — `objetivo`
+
+**Modelo:** `sonnet` · modo automático
+
+**Prompt:**
+
+```
+Lee CLAUDE.md y docs/PLAN.md (sobre todo las decisiones de las Sesiones 5, 6 y 7). Vamos con la Sesión 10c (objetivo).
+
+Objetivo de lectura anual:
+1. Datos: colección readingGoals { userId, year, target (1 a 365), createdAt, updatedAt } con índice único { userId, year }. El progreso no se guarda: se calcula contando los userBooks con estado "read" y finishedAt dentro de ese año, con el mismo criterio de año que getProfileStats. Server Action para fijar o cambiar el objetivo del año actual, con Zod y getCurrentUser().
+2. Inicio: tarjeta arriba del todo con el reto del año: «12 de 30 libros», anillo de progreso y ritmo («Vas 2 libros por delante», «Vas 1 libro por detrás» o «Vas al día»), comparando con lo esperado según el día del año. Al tocarla se abre un panel para cambiar el objetivo. Si no hay objetivo, en su lugar una invitación discreta («¿Cuántos libros quieres leer en 2026?») que abre ese mismo panel.
+3. Al completarlo: la tarjeta cambia a estado «¡Reto cumplido!» con algo de celebración visual sobria, y deja seguir contando por encima del objetivo («34 de 30»).
+4. Perfil: el progreso del reto junto a las estadísticas de la cabecera, tanto en /perfil como en /u/[username] para amigos (mediante getOtherProfile, nunca para quien no es amigo).
+5. Historial: en /perfil, un apartado «Retos anteriores» con cada año, el objetivo y lo leído («2025: 28 de 30»), solo si hay años anteriores.
+6. Actividad: nuevo tipo "goal-completed" que se registra una sola vez por año al alcanzar el objetivo («Marta ha cumplido su reto de 30 libros»). Si después baja de nuevo (por ejemplo, al quitar un libro), no se borra.
+
+Hecho cuando: puedo fijar el objetivo, el progreso y el ritmo son correctos con mis libros, un amigo ve mi reto en mi perfil y alguien que no es amigo no lo ve. typecheck, lint y build pasan. Marca la sesión y anota las decisiones.
+```
+
+---
+
+## Ideas para más adelante
+
 - **Escáner de código de barras** con la cámara para añadir libros por ISBN.
 - **Importar desde Goodreads** con su exportación CSV.
+- **Desuscribir de Pusher al eliminar una amistad** (pendiente de bajo riesgo de la Sesión 9).

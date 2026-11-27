@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookMarked, BookOpen, CheckCheck, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BookCover } from "@/components/books/book-cover";
+import { ReviewMark } from "@/components/reviews/review-mark";
 import { EmptyState } from "@/components/empty-state";
 import { percentOf } from "@/lib/shelf";
 import { cn } from "@/lib/utils";
@@ -91,13 +92,16 @@ export function ShelfTabs({ entries, initialTab = "reading", ownerName }: ShelfT
               return (
                 <li key={entry.bookId}>
                   <Link href={`/libro/${entry.publicId}`} className="block active:opacity-80" aria-label={entry.title}>
-                    <BookCover
-                      title={entry.title}
-                      author={entry.authors[0]}
-                      coverUrl={entry.coverUrl}
-                      sizes="(min-width: 768px) 140px, (min-width: 640px) 180px, 33vw"
-                      className="w-full"
-                    />
+                    <div className="relative">
+                      <BookCover
+                        title={entry.title}
+                        author={entry.authors[0]}
+                        coverUrl={entry.coverUrl}
+                        sizes="(min-width: 768px) 140px, (min-width: 640px) 180px, 33vw"
+                        className="w-full"
+                      />
+                      {entry.status === "read" && entry.hasReview ? <ReviewMark /> : null}
+                    </div>
                     {entry.status === "reading" && percent !== null ? (
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
                         <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />

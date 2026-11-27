@@ -4,7 +4,9 @@ import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { BookCover } from "@/components/books/book-cover";
+import { ReviewFields } from "@/components/reviews/review-fields";
 import { setShelfStatusAction } from "@/server/shelf/actions";
+import { REVIEW_MAX_LENGTH } from "@/types/review";
 import type { ShelfEntry } from "@/types/shelf";
 import { ReadingProgress } from "./reading-progress";
 import { StarRating } from "./star-rating";
@@ -14,10 +16,14 @@ export function ReadingCard({ entry }: { entry: ShelfEntry }) {
   const [finished, setFinished] = useOptimistic(false, (_: boolean, next: boolean) => next);
   const [finishing, setFinishing] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+  const [review, setReview] = useState({ text: "", hasSpoilers: false });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (finished) return null;
+
+  const reviewText = review.text.trim();
+  const tooLong = reviewText.length > REVIEW_MAX_LENGTH;
 
   function save() {
     setError(null);
@@ -27,6 +33,7 @@ export function ReadingCard({ entry }: { entry: ShelfEntry }) {
         bookId: entry.bookId,
         status: "read",
         ...(rating ? { rating } : {}),
+        ...(reviewText ? { review: { text: reviewText, hasSpoilers: review.hasSpoilers } } : {}),
       });
       if (!result.ok) setError(result.error);
     });
@@ -63,6 +70,7 @@ export function ReadingCard({ entry }: { entry: ShelfEntry }) {
           <p className="font-display text-lg font-semibold">¡Libro terminado!</p>
           <p className="text-sm text-muted-foreground">¿Qué nota le das? (opcional)</p>
           <StarRating value={rating ?? undefined} onChange={setRating} className="mt-1" />
+          <ReviewFields {...review} onChange={setReview} disabled={pending} className="mt-2" />
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -73,7 +81,7 @@ export function ReadingCard({ entry }: { entry: ShelfEntry }) {
             </button>
             <button
               type="button"
-              disabled={pending}
+              disabled={pending || tooLong}
               onClick={save}
               className="h-11 rounded-full bg-primary text-base font-medium text-primary-foreground transition-transform active:scale-[0.97] disabled:opacity-50"
             >

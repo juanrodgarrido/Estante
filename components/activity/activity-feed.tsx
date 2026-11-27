@@ -19,6 +19,7 @@ function Verb({ item }: { item: ActivityItem }) {
       </>
     );
   }
+  if (item.type === "reviewed") return <>ha reseñado</>;
   return (
     <>
       valoró
@@ -53,6 +54,14 @@ function Row({ item }: { item: ActivityItem }) {
             {item.book.title}
           </Link>
         </p>
+        {item.excerpt ? (
+          <Link
+            href={`/libro/${item.book.publicId}`}
+            className="mt-1 line-clamp-2 block text-pretty break-words text-sm leading-snug text-muted-foreground"
+          >
+            «{item.excerpt}»
+          </Link>
+        ) : null}
         <time dateTime={item.createdAt} suppressHydrationWarning className="text-sm text-muted-foreground">
           {relativeTime(item.createdAt)}
         </time>

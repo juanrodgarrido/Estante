@@ -11,12 +11,14 @@ export type UserSummary = {
 
 export type UserSearchResult = UserSummary & { relation: Relation };
 
-export type ActivityType = "started" | "finished" | "rated";
+export type ActivityType = "started" | "finished" | "rated" | "reviewed";
 
 export type ActivityItem = {
   id: string;
   type: ActivityType;
   rating?: number;
+  /** Solo en «reviewed» y sin spoilers: primeras líneas de la reseña. */
+  excerpt?: string;
   createdAt: string;
   user: UserSummary;
   book: {

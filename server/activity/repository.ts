@@ -2,6 +2,7 @@ import "server-only";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "@/lib/db";
 import { listFriendIds } from "@/server/friends/repository";
+import { getUserBooks } from "@/server/shelf/repository";
 import type { ActivityItem, ActivityPage, ActivityType } from "@/types/friends";
 
 export type ActivityDoc = {
@@ -45,8 +46,11 @@ export async function recordActivity(
     const now = new Date();
 
     if (type === "rated") {
-      const last = await activities.findOne({ userId: user, bookId: book }, { sort: { createdAt: -1 } });
-      if (last && last.type !== "started" && now.getTime() - last.createdAt.getTime() < MERGE_WINDOW_MS) {
+      const last = await activities.findOne(
+        { userId: user, bookId: book, type: { $in: ["finished", "rated"] } },
+        { sort: { createdAt: -1 } },
+      );
+      if (last && now.getTime() - last.createdAt.getTime() < MERGE_WINDOW_MS) {
         await activities.updateOne({ _id: last._id }, { $set: { rating: rating } });
         return;
       }
@@ -62,6 +66,38 @@ export async function recordActivity(
     });
   } catch (error) {
     console.error("recordActivity", error);
+  }
+}
+
+/**
+ * Registra «reseñó». El texto no se guarda en la actividad (se lee de la reseña al
+ * pintar), así que editarla en los 15 minutos siguientes no crea otra entrada y
+ * ya queda reflejada en la existente.
+ */
+export async function recordReviewActivity(userId: string, bookId: string): Promise<void> {
+  try {
+    const activities = await getActivities();
+    const user = new ObjectId(userId);
+    const book = new ObjectId(bookId);
+    const now = new Date();
+    const last = await activities.findOne({ userId: user, bookId: book, type: "reviewed" }, { sort: { createdAt: -1 } });
+    if (last && now.getTime() - last.createdAt.getTime() < MERGE_WINDOW_MS) return;
+    await activities.insertOne({ _id: new ObjectId(), userId: user, bookId: book, type: "reviewed", createdAt: now });
+  } catch (error) {
+    console.error("recordReviewActivity", error);
+  }
+}
+
+/** Borrar la reseña (o sacar el libro de Leídos) borra su actividad. */
+export async function clearReviewActivity(userId: string, bookId: string): Promise<void> {
+  try {
+    await (await getActivities()).deleteMany({
+      userId: new ObjectId(userId),
+      bookId: new ObjectId(bookId),
+      type: "reviewed",
+    });
+  } catch (error) {
+    console.error("clearReviewActivity", error);
   }
 }
 
@@ -136,10 +172,54 @@ export async function listFriendActivity(me: string, cursor?: string, limit = 10
   const page = rows.slice(0, limit);
   const last = rows.length > limit ? rows[limit - 1] : null;
 
-  const items: ActivityItem[] = page.map((row) => ({
+  // «Reseñó»: el extracto sale de la reseña actual (nunca si tiene spoilers).
+  const reviewed = page.filter((row) => row.type === "reviewed");
+  const reviews = new Map<string, { text: string; hasSpoilers: boolean }>();
+  if (reviewed.length > 0) {
+    const docs = await (await getUserBooks())
+      .find(
+        {
+          status: "read",
+          review: { $exists: true },
+          $or: reviewed.map((row) => ({ userId: row.userId, bookId: row.bookId })),
+        },
+        { projection: { userId: 1, bookId: 1, review: 1 } },
+      )
+      .toArray();
+    for (const doc of docs) {
+      if (doc.review) reviews.set(`${doc.userId.toHexString()}_${doc.bookId.toHexString()}`, doc.review);
+    }
+  }
+
+  const items: ActivityItem[] = page.flatMap((row): ActivityItem[] => {
+    let excerpt: string | undefined;
+    if (row.type === "reviewed") {
+      const review = reviews.get(`${row.userId.toHexString()}_${row.bookId.toHexString()}`);
+      if (!review) return []; // reseña ya borrada: no hay nada que enseñar
+      if (!review.hasSpoilers) excerpt = excerptOf(review.text);
+    }
+    return [toItem(row, excerpt)];
+  });
+
+  return {
+    items,
+    nextCursor: last ? `${last.createdAt.getTime()}_${last._id.toHexString()}` : null,
+  };
+}
+
+const EXCERPT_LENGTH = 160;
+
+function excerptOf(text: string): string {
+  const flat = text.replace(/\s+/g, " ").trim();
+  return flat.length > EXCERPT_LENGTH ? `${flat.slice(0, EXCERPT_LENGTH).trimEnd()}…` : flat;
+}
+
+function toItem(row: Row, excerpt?: string): ActivityItem {
+  return {
     id: row._id.toHexString(),
     type: row.type,
     rating: row.rating,
+    ...(excerpt ? { excerpt } : {}),
     createdAt: row.createdAt.toISOString(),
     user: {
       id: row.user._id.toHexString(),
@@ -153,10 +233,5 @@ export async function listFriendActivity(me: string, cursor?: string, limit = 10
       author: row.book.authors[0],
       coverUrl: row.book.coverUrl,
     },
-  }));
-
-  return {
-    items,
-    nextCursor: last ? `${last.createdAt.getTime()}_${last._id.toHexString()}` : null,
   };
 }

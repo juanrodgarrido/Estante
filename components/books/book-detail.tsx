@@ -3,6 +3,9 @@ import { bookIdSchema } from "@/lib/validation/books";
 import { getCurrentUser } from "@/server/auth";
 import { getBook } from "@/server/books/repository";
 import { getShelfState } from "@/server/shelf/repository";
+import { listFriendReviews } from "@/server/shelf/reviews";
+import { FriendReviews } from "@/components/reviews/friend-reviews";
+import { MyReview } from "@/components/reviews/my-review";
 import { ShelfControl } from "@/components/shelf/shelf-control";
 import { BookCover } from "./book-cover";
 import { BookDescription } from "./book-description";
@@ -32,7 +35,10 @@ export async function BookDetail({ id }: { id: string }) {
   const user = await getCurrentUser();
   const book = await getBook(id);
   if (!book) notFound();
-  const shelf = await getShelfState(user.id, book._id);
+  const [shelf, friendReviews] = await Promise.all([
+    getShelfState(user.id, book._id),
+    listFriendReviews(user.id, book._id),
+  ]);
 
   const details = [
     book.pageCount ? ["Páginas", String(book.pageCount)] : null,
@@ -66,6 +72,9 @@ export async function BookDetail({ id }: { id: string }) {
           <BookDescription text={book.description} />
         </section>
       ) : null}
+
+      {shelf?.status === "read" && shelf.review ? <MyReview bookId={book._id} review={shelf.review} /> : null}
+      <FriendReviews reviews={friendReviews} />
 
       {book.categories?.length ? (
         <ul aria-label="Categorías" className="mt-6 flex flex-wrap gap-2">

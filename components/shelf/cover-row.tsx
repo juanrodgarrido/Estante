@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { BookCover } from "@/components/books/book-cover";
+import { ReviewMark } from "@/components/reviews/review-mark";
 import type { ShelfEntry } from "@/types/shelf";
 
 /** Fila horizontal de portadas con título de sección y enlace «Ver todos». */
@@ -41,7 +42,10 @@ export function CoverRow({
         {entries.map((entry) => (
           <li key={entry.bookId} className="w-24 shrink-0 snap-start">
             <Link href={`/libro/${entry.publicId}`} aria-label={entry.title} className="block active:opacity-80">
-              <BookCover title={entry.title} author={entry.authors[0]} coverUrl={entry.coverUrl} sizes="96px" className="w-full" />
+              <div className="relative">
+                <BookCover title={entry.title} author={entry.authors[0]} coverUrl={entry.coverUrl} sizes="96px" className="w-full" />
+                {entry.status === "read" && entry.hasReview ? <ReviewMark /> : null}
+              </div>
               {entry.status === "read" && entry.rating ? (
                 <p className="mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground">
                   <Star className="size-3.5 fill-primary text-primary" aria-hidden />

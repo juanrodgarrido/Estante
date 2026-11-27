@@ -1,7 +1,8 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { Check, PenLine } from "lucide-react";
+import { ReviewEditor } from "@/components/reviews/review-editor";
 import { cn } from "@/lib/utils";
 import {
   removeFromShelfAction,
@@ -17,6 +18,8 @@ type Change =
   | { type: "status"; status: ShelfStatus }
   | { type: "rating"; rating: number | null }
   | { type: "remove" };
+
+type Move = Exclude<Change, { type: "rating" }>;
 
 function reduce(state: ShelfState | null, change: Change): ShelfState | null {
   if (change.type === "remove") return null;
@@ -37,6 +40,9 @@ export function ShelfControl({
 }) {
   const [state, apply] = useOptimistic(initial, reduce);
   const [error, setError] = useState<string | null>(null);
+  const [editingReview, setEditingReview] = useState(false);
+  /** Movimiento pendiente de confirmar: sacar de Leídos un libro con reseña la borra. */
+  const [confirming, setConfirming] = useState<Move | null>(null);
   const [, startTransition] = useTransition();
 
   function run(change: Change, action: () => ReturnType<typeof setShelfStatusAction>) {
@@ -48,7 +54,25 @@ export function ShelfControl({
     });
   }
 
-  const finish = () => run({ type: "status", status: "read" }, () => setShelfStatusAction({ bookId, status: "read" }));
+  /** Lanza el cambio, o pide confirmación si se perdería la reseña. */
+  function move(change: Move) {
+    if (state?.status === "read" && state.review && !(change.type === "status" && change.status === "read")) {
+      setConfirming(change);
+      return;
+    }
+    perform(change, false);
+  }
+
+  function perform(change: Move, discardReview: boolean) {
+    setConfirming(null);
+    if (change.type === "remove") {
+      run(change, () => removeFromShelfAction({ bookId, discardReview }));
+    } else {
+      run(change, () => setShelfStatusAction({ bookId, status: change.status, discardReview }));
+    }
+  }
+
+  const finish =() => run({ type: "status", status: "read" }, () => setShelfStatusAction({ bookId, status: "read" }));
 
   return (
     <div className="space-y-4">
@@ -66,7 +90,7 @@ export function ShelfControl({
               aria-pressed={active}
               onClick={() => {
                 if (active) return;
-                run({ type: "status", status }, () => setShelfStatusAction({ bookId, status }));
+                move({ type: "status", status });
               }}
               className={cn(
                 "flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-sm font-medium shadow-sm transition-[background-color,color,transform] active:scale-[0.97]",
@@ -106,13 +130,53 @@ export function ShelfControl({
             onChange={(rating) => run({ type: "rating", rating }, () => setRatingAction({ bookId, rating }))}
             className="mt-1"
           />
+          {editingReview ? (
+            <div className="mt-3 border-t border-border pt-3">
+              <ReviewEditor bookId={bookId} initial={state.review} onDone={() => setEditingReview(false)} />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingReview(true)}
+              className="mx-auto mt-1 flex h-11 items-center gap-2 rounded-full px-4 text-sm font-medium text-primary hover:bg-muted"
+            >
+              <PenLine className="size-4" aria-hidden />
+              {state.review ? "Editar reseña" : "Escribir reseña"}
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {confirming ? (
+        <div role="alertdialog" aria-label="Confirmar" className="space-y-2 rounded-xl border border-destructive/40 bg-card p-4 text-center">
+          <p className="text-base">
+            {confirming.type === "remove"
+              ? "Al quitarlo de tu estantería perderás tu nota y tu reseña."
+              : "Al sacarlo de Leídos perderás tu nota y tu reseña."}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(null)}
+              className="h-11 rounded-full border border-border bg-card text-base font-medium active:scale-[0.97]"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => perform(confirming, true)}
+              className="h-11 rounded-full bg-destructive text-base font-medium text-white active:scale-[0.97]"
+            >
+              Continuar
+            </button>
+          </div>
         </div>
       ) : null}
 
       {state ? (
         <button
           type="button"
-          onClick={() => run({ type: "remove" }, () => removeFromShelfAction({ bookId }))}
+          onClick={() => move({ type: "remove" })}
           className="mx-auto flex h-11 items-center rounded-full px-4 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
           Quitar de mi estantería

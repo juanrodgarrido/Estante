@@ -12,6 +12,8 @@ export type UserBookDoc = {
   currentPage?: number;
   startedAt?: Date;
   finishedAt?: Date;
+  /** Solo puede existir con `status: "read"`. */
+  review?: { text: string; hasSpoilers: boolean; createdAt: Date; updatedAt: Date };
   createdAt: Date;
   updatedAt: Date;
 };
@@ -38,7 +40,19 @@ export async function getShelfState(userId: string, bookId: string): Promise<She
     bookId: new ObjectId(bookId),
   });
   if (!doc) return null;
-  return { status: doc.status, rating: doc.rating, currentPage: doc.currentPage };
+  return {
+    status: doc.status,
+    rating: doc.rating,
+    currentPage: doc.currentPage,
+    review: doc.review
+      ? {
+          text: doc.review.text,
+          hasSpoilers: doc.review.hasSpoilers,
+          createdAt: doc.review.createdAt.toISOString(),
+          updatedAt: doc.review.updatedAt.toISOString(),
+        }
+      : undefined,
+  };
 }
 
 /** Libros del usuario (todos o de un estado), por última actualización. */
@@ -87,6 +101,7 @@ export async function listShelf(userId: string, status?: ShelfStatus, limit?: nu
     status: doc.status,
     rating: doc.rating,
     currentPage: doc.currentPage,
+    hasReview: doc.review !== undefined,
     startedAt: doc.startedAt?.toISOString(),
     finishedAt: doc.finishedAt?.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),

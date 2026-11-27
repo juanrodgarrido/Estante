@@ -5,18 +5,35 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
 import {
+  deleteReviewSchema,
   removeSchema,
   setProgressSchema,
   setRatingSchema,
+  setReviewSchema,
   setStatusSchema,
 } from "@/lib/validation/shelf";
-import { clearActivity, clearRatingActivity, recordActivity } from "@/server/activity/repository";
+import {
+  clearActivity,
+  clearRatingActivity,
+  clearReviewActivity,
+  recordActivity,
+  recordReviewActivity,
+} from "@/server/activity/repository";
 import { getCurrentUser } from "@/server/auth";
 import { getUserBooks, type UserBookDoc } from "./repository";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 const GENERIC_ERROR = "No se ha podido guardar el cambio. Inténtalo de nuevo.";
+
+const REVIEW_LOSS_ERROR = "Este libro tiene una reseña: confirma que quieres perderla.";
+
+function reviewChanged(
+  previous: UserBookDoc["review"],
+  next: { text: string; hasSpoilers: boolean },
+): boolean {
+  return !previous || previous.text !== next.text || previous.hasSpoilers !== next.hasSpoilers;
+}
 
 function invalid(error: z.ZodError): ActionResult {
   return { ok: false, error: error.issues[0]?.message ?? "Datos no válidos" };
@@ -31,7 +48,7 @@ export async function setShelfStatusAction(input: unknown): Promise<ActionResult
   const user = await getCurrentUser();
   const parsed = setStatusSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
-  const { bookId, status, rating } = parsed.data;
+  const { bookId, status, rating, review, discardReview } = parsed.data;
 
   try {
     const book = await (await getDb()).collection("books").findOne({ _id: new ObjectId(bookId) }, { projection: { _id: 1 } });
@@ -42,8 +59,22 @@ export async function setShelfStatusAction(input: unknown): Promise<ActionResult
     const existing = await userBooks.findOne(filter);
     const now = new Date();
 
+    // La reseña solo vive en «Leídos»: sacar el libro de ahí exige confirmarlo.
+    if (existing?.review && status !== "read" && !discardReview) {
+      return { ok: false, error: REVIEW_LOSS_ERROR };
+    }
+
     const set: Partial<UserBookDoc> = { status, updatedAt: now };
     const unset: Record<string, 1> = {};
+    if (status !== "read") unset.review = 1;
+    if (status === "read" && review) {
+      set.review = {
+        text: review.text,
+        hasSpoilers: review.hasSpoilers,
+        createdAt: existing?.review?.createdAt ?? now,
+        updatedAt: now,
+      };
+    }
 
     if (status === "reading") {
       set.startedAt = existing?.status === "reading" ? (existing.startedAt ?? now) : now;
@@ -82,6 +113,10 @@ export async function setShelfStatusAction(input: unknown): Promise<ActionResult
       await recordActivity(user.id, bookId, "finished", rating);
     } else if (status === "read" && rating !== undefined && rating !== existing?.rating) {
       await recordActivity(user.id, bookId, "rated", rating);
+    }
+    if (status !== "read" && existing?.review) await clearReviewActivity(user.id, bookId);
+    if (status === "read" && review && reviewChanged(existing?.review, review)) {
+      await recordReviewActivity(user.id, bookId);
     }
   } catch (error) {
     console.error("setShelfStatusAction", error);
@@ -147,13 +182,73 @@ export async function removeFromShelfAction(input: unknown): Promise<ActionResul
   if (!parsed.success) return invalid(parsed.error);
 
   try {
-    await (await getUserBooks()).deleteOne({
-      userId: new ObjectId(user.id),
-      bookId: new ObjectId(parsed.data.bookId),
-    });
+    const filter = { userId: new ObjectId(user.id), bookId: new ObjectId(parsed.data.bookId) };
+    const userBooks = await getUserBooks();
+    if (!parsed.data.discardReview && (await userBooks.findOne({ ...filter, review: { $exists: true } }, { projection: { _id: 1 } }))) {
+      return { ok: false, error: REVIEW_LOSS_ERROR };
+    }
+    await userBooks.deleteOne(filter);
     await clearActivity(user.id, parsed.data.bookId);
   } catch (error) {
     console.error("removeFromShelfAction", error);
+    return { ok: false, error: GENERIC_ERROR };
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Guarda (crea o edita) la reseña de un libro que está en Leídos. */
+export async function setReviewAction(input: unknown): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  const parsed = setReviewSchema.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error);
+  const { bookId, text, hasSpoilers } = parsed.data;
+
+  try {
+    const userBooks = await getUserBooks();
+    const filter = { userId: new ObjectId(user.id), bookId: new ObjectId(bookId), status: "read" as const };
+    const existing = await userBooks.findOne(filter, { projection: { review: 1 } });
+    if (!existing) return { ok: false, error: "Solo puedes reseñar libros de tus leídos" };
+
+    const now = new Date();
+    // Con pipeline para conservar `createdAt` de forma atómica; `$literal` evita que un
+    // texto que empiece por «$» se interprete como una expresión.
+    await userBooks.updateOne(filter, [
+      {
+        $set: {
+          review: {
+            text: { $literal: text },
+            hasSpoilers,
+            createdAt: { $ifNull: ["$review.createdAt", now] },
+            updatedAt: now,
+          },
+          updatedAt: now,
+        },
+      },
+    ]);
+    if (reviewChanged(existing.review, { text, hasSpoilers })) await recordReviewActivity(user.id, bookId);
+  } catch (error) {
+    console.error("setReviewAction", error);
+    return { ok: false, error: GENERIC_ERROR };
+  }
+  refresh();
+  return { ok: true };
+}
+
+/** Borra la reseña (y su actividad); la nota y el estado no cambian. */
+export async function deleteReviewAction(input: unknown): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  const parsed = deleteReviewSchema.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error);
+
+  try {
+    await (await getUserBooks()).updateOne(
+      { userId: new ObjectId(user.id), bookId: new ObjectId(parsed.data.bookId), status: "read" },
+      { $unset: { review: 1 }, $set: { updatedAt: new Date() } },
+    );
+    await clearReviewActivity(user.id, parsed.data.bookId);
+  } catch (error) {
+    console.error("deleteReviewAction", error);
     return { ok: false, error: GENERIC_ERROR };
   }
   refresh();
