@@ -1,5 +1,11 @@
 export type BookSource = "google" | "openlibrary";
 
+/**
+ * De dónde viene `coverUrl`: del propio registro (`google`, `openlibrary`) o de
+ * la cadena de respaldo (`server/books/cover-fallback.ts`).
+ */
+export type CoverSource = BookSource | "openlibrary-isbn" | "google-edition" | "openlibrary-search";
+
 /** Libro normalizado, igual que el modelo `books` del plan (sin `_id` ni `fetchedAt`). */
 export type NormalizedBook = {
   source: BookSource;
@@ -9,6 +15,7 @@ export type NormalizedBook = {
   authors: string[];
   description?: string;
   coverUrl?: string;
+  coverSource?: CoverSource;
   pageCount?: number;
   publishedDate?: string;
   isbn13?: string;

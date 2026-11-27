@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { BookSearchItem, NormalizedBook } from "@/types/book";
 import { cleanCategories, htmlToText, normalizeLanguage, pickIsbns, yearFrom } from "./normalize";
+import { openLibraryUserAgent } from "./user-agent";
 import { ProviderError, type BookProvider, type ProviderSearchResult, type SearchOptions } from "./types";
 
 const BASE_URL = "https://openlibrary.org";
@@ -44,16 +45,11 @@ const authorSchema = z.object({ name: z.string().optional() });
 
 type Doc = z.infer<typeof docSchema>;
 
-function userAgent(): string {
-  const contact = process.env.OPENLIBRARY_CONTACT_EMAIL?.trim();
-  return contact ? `Estante/0.1 (${contact})` : "Estante/0.1";
-}
-
 async function getJson(path: string, timeoutMs = TIMEOUT_MS): Promise<unknown> {
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
-      headers: { "User-Agent": userAgent(), Accept: "application/json" },
+      headers: { "User-Agent": openLibraryUserAgent(), Accept: "application/json" },
       signal: AbortSignal.timeout(timeoutMs),
       cache: "no-store",
     });
@@ -155,6 +151,7 @@ export const openLibrary: BookProvider = {
       authors,
       description: htmlToText(description),
       coverUrl: coverUrl(doc?.cover_i ?? work.data.covers?.find((c) => c > 0), "L"),
+      coverSource: doc?.cover_i || work.data.covers?.some((c) => c > 0) ? "openlibrary" : undefined,
       pageCount: doc?.number_of_pages_median && doc.number_of_pages_median > 0 ? doc.number_of_pages_median : undefined,
       publishedDate: doc?.first_publish_year ? String(doc.first_publish_year) : yearFrom(work.data.first_publish_date),
       ...pickIsbns(doc?.isbn),

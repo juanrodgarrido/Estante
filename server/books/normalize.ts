@@ -109,3 +109,33 @@ export function normalizeLanguage(code: string | undefined | null): string | und
   const lower = code.toLowerCase();
   return lower.length === 2 ? lower : map[lower];
 }
+
+/** Minúsculas, sin acentos ni signos ni paréntesis: para comparar títulos y autores. */
+export function foldText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\(.*?\)/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+type GoogleImageLinks = Partial<
+  Record<"extraLarge" | "large" | "medium" | "small" | "thumbnail" | "smallThumbnail", string | undefined>
+>;
+
+/**
+ * Portada de un volumen de Google Books: el tamaño más grande que ofrece (el
+ * `zoom` ya viene en la URL; subirlo a mano devuelve «imagen no disponible» en
+ * libros antiguos), en https y sin el efecto de página doblada.
+ */
+export function pickGoogleCover(links: GoogleImageLinks | undefined): string | undefined {
+  const raw =
+    links?.extraLarge ?? links?.large ?? links?.medium ?? links?.small ?? links?.thumbnail ?? links?.smallThumbnail;
+  const url = forceHttps(raw);
+  if (!url) return undefined;
+  const parsed = new URL(url);
+  parsed.searchParams.delete("edge");
+  return parsed.toString();
+}

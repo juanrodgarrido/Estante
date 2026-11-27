@@ -3,9 +3,9 @@ import { z } from "zod";
 import type { BookSearchItem, NormalizedBook } from "@/types/book";
 import {
   cleanCategories,
-  forceHttps,
   htmlToText,
   normalizeLanguage,
+  pickGoogleCover,
   pickIsbns,
   yearFrom,
 } from "./normalize";
@@ -53,19 +53,6 @@ function apiKey(): string | undefined {
   return process.env.GOOGLE_BOOKS_API_KEY?.trim() || undefined;
 }
 
-function pickCover(links: NonNullable<Volume["volumeInfo"]>["imageLinks"]): string | undefined {
-  const raw =
-    links?.extraLarge ?? links?.large ?? links?.medium ?? links?.small ?? links?.thumbnail ?? links?.smallThumbnail;
-  const url = forceHttps(raw);
-  if (!url) return undefined;
-  // Se elige el tamaño más grande que ofrece Google (el `zoom` ya viene en la URL;
-  // subirlo a mano devuelve «imagen no disponible» en libros antiguos) y se quita
-  // el efecto de página doblada.
-  const parsed = new URL(url);
-  parsed.searchParams.delete("edge");
-  return parsed.toString();
-}
-
 function toNormalized(volume: Volume): NormalizedBook | null {
   const info = volume.volumeInfo;
   if (!info?.title) return null;
@@ -76,7 +63,8 @@ function toNormalized(volume: Volume): NormalizedBook | null {
     subtitle: info.subtitle || undefined,
     authors: info.authors ?? [],
     description: htmlToText(info.description),
-    coverUrl: pickCover(info.imageLinks),
+    coverUrl: pickGoogleCover(info.imageLinks),
+    coverSource: info.imageLinks ? "google" : undefined,
     pageCount: info.pageCount && info.pageCount > 0 ? info.pageCount : undefined,
     publishedDate: info.publishedDate || undefined,
     ...pickIsbns(info.industryIdentifiers?.map((entry) => entry.identifier)),

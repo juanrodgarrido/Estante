@@ -3,18 +3,9 @@ import { cacheLife } from "next/cache";
 import type { BookSearchItem, BookSearchPage } from "@/types/book";
 import { googleBooks } from "./google";
 import { SPANISH_STOPWORDS, isSpanishQuery } from "./language";
+import { foldText as fold } from "./normalize";
 import { openLibrary } from "./openlibrary";
 import type { BookProvider, ProviderSearchResult } from "./types";
-
-function fold(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/\(.*?\)/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
 
 /** 0: el título es la búsqueda; 1: empieza por ella; 2: el resto. */
 function matchRank(title: string, query: string): number {

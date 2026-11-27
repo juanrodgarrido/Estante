@@ -2,14 +2,17 @@ import "server-only";
 import { connection } from "next/server";
 import { ObjectId, type Collection } from "mongodb";
 import { getDb } from "@/lib/db";
-import type { Book, BookSource, NormalizedBook } from "@/types/book";
+import type { Book, BookSearchItem, BookSource, NormalizedBook } from "@/types/book";
 import { googleBooks } from "./google";
 import { openLibrary } from "./openlibrary";
+import { coverPatch, findFallbackCover, needsCoverCheck } from "./cover-fallback";
 import type { BookProvider } from "./types";
 
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/** Tiempo máximo que la ficha espera a la cadena de portadas de respaldo. */
+const COVER_BUDGET_MS = 10_000;
 
-type BookDoc = NormalizedBook & { _id: ObjectId; fetchedAt: Date };
+type BookDoc = NormalizedBook & { _id: ObjectId; fetchedAt: Date; coverCheckedAt?: Date };
 
 let indexesReady: Promise<unknown> | undefined;
 
@@ -33,6 +36,7 @@ function publicIdOf(source: BookSource, sourceId: string): string {
 
 function toBook(doc: BookDoc): Book {
   const { _id, fetchedAt, ...rest } = doc;
+  delete rest.coverCheckedAt; // interno: no viaja al cliente
   return {
     ...rest,
     _id: _id.toHexString(),
@@ -52,6 +56,56 @@ function parsePublicId(
 
 function providerFor(source: BookSource): BookProvider {
   return source === "google" ? googleBooks : openLibrary;
+}
+
+function lookupCover(book: NormalizedBook) {
+  return findFallbackCover(book, { deadline: Date.now() + COVER_BUDGET_MS });
+}
+
+/** Busca portada de respaldo para un libro ya guardado y anota el resultado. Nunca rompe la ficha. */
+async function completeCover(books: Collection<BookDoc>, doc: BookDoc): Promise<BookDoc> {
+  try {
+    const patch = coverPatch(await lookupCover(doc));
+    const updated = await books.findOneAndUpdate(
+      { _id: doc._id },
+      { $set: patch.set, $unset: Object.fromEntries(patch.unset.map((key) => [key, 1 as const])) },
+      { returnDocument: "after" },
+    );
+    return updated ?? doc;
+  } catch (error) {
+    console.error("Portada de respaldo: no se ha podido guardar", error);
+    return doc;
+  }
+}
+
+/**
+ * En los resultados de búsqueda, si un libro no trae portada pero ya está
+ * guardado en `books` con una, usa la guardada. Solo lee la base de datos; nunca
+ * llama a ninguna API y nunca rompe la búsqueda.
+ */
+export async function fillStoredCovers(items: BookSearchItem[]): Promise<BookSearchItem[]> {
+  const missing = items.flatMap((item) => {
+    const parsed = item.coverUrl ? null : parsePublicId(item.id);
+    return parsed?.kind === "source" ? [parsed] : [];
+  });
+  if (missing.length === 0) return items;
+  try {
+    const books = await getBooksCollection();
+    const stored = await books
+      .find(
+        {
+          $or: missing.map(({ source, sourceId }) => ({ source, sourceId })),
+          coverUrl: { $exists: true, $ne: "" },
+        },
+        { projection: { source: 1, sourceId: 1, coverUrl: 1 } },
+      )
+      .toArray();
+    const covers = new Map(stored.map((doc) => [publicIdOf(doc.source, doc.sourceId), doc.coverUrl]));
+    return items.map((item) => (item.coverUrl ? item : { ...item, coverUrl: covers.get(item.id) }));
+  } catch (error) {
+    console.error("Búsqueda de libros: no se han podido leer portadas guardadas", error);
+    return items;
+  }
 }
 
 /**
@@ -75,7 +129,10 @@ export async function getBook(id: string): Promise<Book | null> {
       ? await books.findOne({ _id: parsed.objectId })
       : await books.findOne({ source: parsed.source, sourceId: parsed.sourceId });
 
-  if (cached && Date.now() - cached.fetchedAt.getTime() < MAX_AGE_MS) return toBook(cached);
+  if (cached && Date.now() - cached.fetchedAt.getTime() < MAX_AGE_MS) {
+    // Un libro guardado sin portada lo intenta en la siguiente apertura, sin esperar a los 30 días.
+    return toBook(needsCoverCheck(cached) ? await completeCover(books, cached) : cached);
+  }
 
   const source = cached?.source ?? (parsed.kind === "source" ? parsed.source : null);
   const sourceId = cached?.sourceId ?? (parsed.kind === "source" ? parsed.sourceId : null);
@@ -93,16 +150,28 @@ export async function getBook(id: string): Promise<Book | null> {
   if (!fresh) return null;
 
   const fetchedAt = new Date();
+  // Si el proveedor ya no trae portada pero teníamos una (quizá de respaldo), se conserva.
+  const merged: NormalizedBook & { coverCheckedAt?: Date } =
+    !fresh.coverUrl && cached?.coverUrl ? { ...fresh, coverUrl: cached.coverUrl, coverSource: cached.coverSource } : fresh;
+  const unsetKeys: string[] = [];
+  if (merged.coverUrl) {
+    unsetKeys.push("coverCheckedAt");
+  } else if (needsCoverCheck({ coverCheckedAt: cached?.coverCheckedAt })) {
+    const patch = coverPatch(await lookupCover(merged));
+    Object.assign(merged, patch.set);
+    unsetKeys.push(...patch.unset);
+  }
   // Los campos opcionales ausentes se quitan para no dejar datos viejos.
+  const optional = ["subtitle", "description", "coverUrl", "coverSource", "pageCount", "publishedDate", "isbn13", "isbn10", "categories", "language"] as const;
   const unset = Object.fromEntries(
-    (["subtitle", "description", "coverUrl", "pageCount", "publishedDate", "isbn13", "isbn10", "categories", "language"] as const)
-      .filter((key) => fresh[key] === undefined)
-      .map((key) => [key, 1 as const]),
+    [...optional.filter((key) => merged[key] === undefined), ...unsetKeys.filter((key) => !(key in merged))].map(
+      (key) => [key, 1 as const],
+    ),
   );
   const saved = await books.findOneAndUpdate(
     { source, sourceId },
     {
-      $set: { ...Object.fromEntries(Object.entries(fresh).filter(([, value]) => value !== undefined)), fetchedAt },
+      $set: { ...Object.fromEntries(Object.entries(merged).filter(([, value]) => value !== undefined)), fetchedAt },
       ...(Object.keys(unset).length > 0 ? { $unset: unset } : {}),
     },
     { upsert: true, returnDocument: "after" },

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { searchQuerySchema } from "@/lib/validation/books";
 import { allowRequest } from "@/lib/rate-limit";
 import { getOptionalUser } from "@/server/auth";
+import { fillStoredCovers } from "@/server/books/repository";
 import { searchBooks } from "@/server/books/search";
 
 export async function GET(request: NextRequest) {
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await searchBooks(parsed.data.q, parsed.data.page);
-    return NextResponse.json(result);
+    // Fuera de la caché de la búsqueda: las portadas guardadas pueden haber cambiado desde entonces.
+    return NextResponse.json({ ...result, items: await fillStoredCovers(result.items) });
   } catch {
     return NextResponse.json(
       { error: "No hemos podido buscar libros ahora mismo. Inténtalo de nuevo en un momento." },
