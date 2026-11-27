@@ -4,10 +4,10 @@ import { countPendingIncoming } from "@/server/friends/repository";
 import { TabBar } from "./tab-bar";
 
 /** Barra inferior con los mensajes sin leer (Chat) y las solicitudes de amistad pendientes (Perfil). */
-export async function TabBarWithBadges() {
+export async function TabBarWithBadges({ media }: { media?: string } = {}) {
   const user = await getOptionalUser();
   const [pending, unread] = user
     ? await Promise.all([countPendingIncoming(user.id), countUnread(user.id).catch(() => 0)])
     : [0, 0];
-  return <TabBar userId={user?.id ?? null} unread={unread} badges={{ "/perfil": pending }} />;
+  return <TabBar media={media} userId={user?.id ?? null} unread={unread} badges={{ "/perfil": pending }} />;
 }

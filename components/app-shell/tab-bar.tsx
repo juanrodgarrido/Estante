@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { markInAppNavigation } from "@/lib/in-app-nav";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useChannelEvent, userChannel } from "@/lib/pusher-client";
 import { TabBarView } from "./tab-bar-view";
 
 type TabBarProps = {
+  /** Media query en la que esta barra está visible; fuera de ella no escucha ni consulta nada (por defecto, siempre). */
+  media?: string;
   badges?: Partial<Record<string, number>>;
   /** Usuario de la sesión: su canal privado avisa de los cambios de no leídos. */
   userId?: string | null;
@@ -25,8 +28,10 @@ async function fetchUnread(): Promise<number | null> {
   }
 }
 
-export function TabBar({ badges, userId = null, unread = 0 }: TabBarProps) {
+export function TabBar({ media, badges, userId: sessionUserId = null, unread = 0 }: TabBarProps) {
   const pathname = usePathname();
+  const active = useMediaQuery(media);
+  const userId = active ? sessionUserId : null;
   const [count, setCount] = useState(unread);
   const [seenProp, setSeenProp] = useState(unread);
   if (unread !== seenProp) {
@@ -49,12 +54,13 @@ export function TabBar({ badges, userId = null, unread = 0 }: TabBarProps) {
       firstRender.current = false;
       return;
     }
+    if (!active) return;
     markInAppNavigation();
     if (!userId) return;
     void fetchUnread().then((total) => {
       if (total !== null) setCount(total);
     });
-  }, [pathname, userId]);
+  }, [pathname, userId, active]);
 
   useEffect(() => {
     if (!userId) return;

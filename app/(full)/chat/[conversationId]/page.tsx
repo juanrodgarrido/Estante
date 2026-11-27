@@ -28,16 +28,16 @@ async function Room({ params }: { params: Promise<{ conversationId: string }> })
 
 function RoomSkeleton() {
   return (
-    <div aria-hidden className="fixed inset-0 flex flex-col bg-background" style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}>
+    <div aria-hidden className="fixed inset-0 flex flex-col bg-background pl-[var(--safe-left)] pr-[var(--safe-right)] md:left-[var(--chat-left)] md:pl-0">
       <div className="border-b border-border pt-safe">
-        <div className="mx-auto flex h-14 max-w-xl items-center gap-2.5 px-gutter">
+        <div className="mx-auto flex h-14 max-w-xl items-center gap-2.5 px-gutter md:max-w-3xl">
           <span className="size-9 animate-pulse rounded-full bg-muted" />
           <span className="h-4 w-32 animate-pulse rounded bg-muted" />
         </div>
       </div>
       <div className="flex-1" />
       <div className="border-t border-border pb-[max(0.5rem,var(--safe-bottom))] pt-2">
-        <div className="mx-auto h-11 max-w-xl px-gutter">
+        <div className="mx-auto h-11 max-w-xl px-gutter md:max-w-3xl">
           <div className="h-11 animate-pulse rounded-full bg-muted" />
         </div>
       </div>

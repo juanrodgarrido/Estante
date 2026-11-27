@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /** Filas con avatar y dos líneas de texto (chat, amigos, resultados de personas). */
 export function RowsSkeleton({ count = 4 }: { count?: number }) {
@@ -31,9 +32,16 @@ export function ProfileSkeleton() {
           <Skeleton key={index} className="h-20" />
         ))}
       </div>
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Skeleton key={index} className="aspect-[2/3] rounded-cover" />
+      <div className="mt-6 grid grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-6">
+        {Array.from({ length: 12 }, (_, index) => (
+          <Skeleton
+            key={index}
+            className={cn(
+              "aspect-[2/3] rounded-cover",
+              // 3 columnas: 6 portadas; 5 columnas: 10; 6 columnas: 12 (filas siempre completas).
+              index >= 10 ? "hidden lg:block" : index >= 6 ? "hidden md:block" : "",
+            )}
+          />
         ))}
       </div>
     </div>

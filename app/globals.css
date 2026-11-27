@@ -63,6 +63,10 @@
   --header-h: 3.5rem;
   --gutter: 1.25rem;
   --touch: 2.75rem; /* 44 px */
+  /* Pantallas grandes (md+): barra lateral y lista de conversaciones del chat */
+  --rail-w: 5.5rem;
+  --chatlist-w: 20rem;
+  --chat-left: calc(var(--safe-left) + var(--rail-w) + var(--chatlist-w));
 
   color-scheme: light;
 }
@@ -149,6 +153,8 @@
   --spacing-tabbar: var(--tabbar-h);
   --spacing-header: var(--header-h);
   --spacing-touch: var(--touch);
+  --spacing-rail: var(--rail-w);
+  --spacing-chatlist: var(--chatlist-w);
 }
 
 @layer base {
@@ -204,6 +210,10 @@
   }
   .pb-tabbar {
     padding-bottom: calc(var(--tabbar-h) + var(--tabbar-pb));
+    /* Desde md la navegación es la barra lateral: no hay barra inferior */
+    @variant md {
+      padding-bottom: 0;
+    }
   }
 }
 

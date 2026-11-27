@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Avatar } from "@/components/profile/avatar";
 import { listTime } from "@/lib/chat-time";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/types/chat";
+import { ConversationLink } from "./conversation-link";
 
 /** Lista de conversaciones: avatar, nombre, extracto, hora y punto de no leído. */
 export function ConversationList({ items, me }: { items: ConversationListItem[]; me: string }) {
@@ -12,10 +12,7 @@ export function ConversationList({ items, me }: { items: ConversationListItem[];
         const mine = item.lastMessage.senderId === me;
         return (
           <li key={item.id}>
-            <Link
-              href={`/chat/${item.id}`}
-              className="flex min-h-[4.5rem] items-center gap-3 py-3 active:opacity-70"
-            >
+            <ConversationLink id={item.id}>
               <Avatar name={item.other.name} image={item.other.image} size={48} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline justify-between gap-3">
@@ -48,7 +45,7 @@ export function ConversationList({ items, me }: { items: ConversationListItem[];
                   ) : null}
                 </span>
               </span>
-            </Link>
+            </ConversationLink>
           </li>
         );
       })}

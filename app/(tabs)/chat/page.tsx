@@ -1,55 +1,20 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Suspense } from "react";
-import { MessageCircle, SquarePen } from "lucide-react";
-import { ScreenHeader } from "@/components/app-shell/screen-header";
-import { ConversationList } from "@/components/chat/conversation-list";
-import { LiveRefresh } from "@/components/chat/live-refresh";
-import { EmptyState } from "@/components/empty-state";
-import { RowsSkeleton } from "@/components/ui/skeletons";
-import { getCurrentUser } from "@/server/auth";
-import { listConversations } from "@/server/chat/repository";
+import { MessageCircle } from "lucide-react";
+import { CHAT_LIST_PANE, ChatListPane } from "@/components/chat/chat-list-pane";
 
 export const metadata: Metadata = { title: "Chat" };
-
-async function Conversations() {
-  const me = await getCurrentUser();
-  const items = await listConversations(me.id);
-  return (
-    <>
-      <LiveRefresh userId={me.id} />
-      {items.length === 0 ? (
-        <EmptyState
-          icon={MessageCircle}
-          title="Sin conversaciones todavía"
-          description="Habla de libros con tus amistades: empieza una conversación con cualquiera de ellas."
-          action={{ href: "/chat/nueva", label: "Nueva conversación" }}
-        />
-      ) : (
-        <ConversationList items={items} me={me.id} />
-      )}
-    </>
-  );
-}
 
 export default function ChatPage() {
   return (
     <>
-      <ScreenHeader
-        title="Chat"
-        action={
-          <Link
-            href="/chat/nueva"
-            aria-label="Nueva conversación"
-            className="-mr-2 flex size-11 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted active:scale-95"
-          >
-            <SquarePen className="size-[1.375rem]" aria-hidden />
-          </Link>
-        }
-      />
-      <Suspense fallback={<RowsSkeleton />}>
-        <Conversations />
-      </Suspense>
+      <div className={`flex flex-1 flex-col ${CHAT_LIST_PANE}`}>
+        <ChatListPane />
+      </div>
+      {/* Pantallas grandes: la lista queda a la izquierda y aquí aún no hay conversación abierta. */}
+      <div className="fixed inset-y-0 right-0 left-[var(--chat-left)] hidden flex-col items-center justify-center gap-3 px-gutter text-center text-muted-foreground md:flex">
+        <MessageCircle className="size-10" aria-hidden />
+        <p className="text-pretty">Elige una conversación para empezar a hablar.</p>
+      </div>
     </>
   );
 }

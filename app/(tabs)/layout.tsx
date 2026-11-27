@@ -9,11 +9,13 @@ export default function TabsLayout({ children }: { children: React.ReactNode }) 
       <Suspense fallback={null}>
         <AuthGate />
       </Suspense>
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col pb-tabbar">
-        <ViewTransition enter="page-fade" exit="page-fade" default="none">
-          {children}
-        </ViewTransition>
-      </main>
+      <div className="flex flex-1 flex-col md:pl-rail">
+        <main className="mx-auto flex w-full max-w-xl flex-1 flex-col pb-tabbar md:max-w-3xl">
+          <ViewTransition enter="page-fade" exit="page-fade" default="none">
+            {children}
+          </ViewTransition>
+        </main>
+      </div>
       {/* La ruta activa solo se conoce en la petición: la barra se pinta ya y marca la pestaña después. */}
       <Suspense fallback={<TabBarView pathname={null} />}>
         <TabBarWithBadges />

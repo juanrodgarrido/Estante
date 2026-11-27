@@ -54,39 +54,31 @@ export function TabBarView({
   return (
     <nav
       aria-label="Navegación principal"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-xl md:inset-x-auto md:inset-y-0 md:left-0 md:w-[calc(var(--rail-w)+var(--safe-left))] md:border-t-0 md:border-r"
     >
       <div
-        className="relative mx-auto max-w-xl"
-        style={{
-          paddingBottom: "var(--tabbar-pb)",
-          paddingLeft: "max(0.5rem, var(--safe-left))",
-          paddingRight: "max(0.5rem, var(--safe-right))",
-        }}
+        className="relative mx-auto max-w-xl pb-[var(--tabbar-pb)] pl-[max(0.5rem,var(--safe-left))] pr-[max(0.5rem,var(--safe-right))] md:max-w-none md:pb-0 md:pr-2 md:pt-[max(1rem,var(--safe-top))]"
       >
         {/* Píldora de la pestaña activa: una sola, que se desliza entre pestañas al navegar. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute top-0 grid grid-cols-4"
-          style={{
-            left: "max(0.5rem, var(--safe-left))",
-            right: "max(0.5rem, var(--safe-right))",
-          }}
+          className="pointer-events-none absolute left-[max(0.5rem,var(--safe-left))] right-[max(0.5rem,var(--safe-right))] top-0 grid grid-cols-4 md:right-2 md:top-[max(1rem,var(--safe-top))] md:grid-cols-1"
         >
           <div
             className={cn(
               CELL,
               "transition-[translate,opacity] duration-[380ms] ease-[cubic-bezier(0.32,0.72,0,1)]",
+              "translate-x-[calc(var(--tab)*100%)] md:translate-x-0 md:translate-y-[calc(var(--tab)*100%)]",
               activeIndex < 0 && "opacity-0",
             )}
-            style={{ translate: `${Math.max(activeIndex, 0) * 100}% 0` }}
+            style={{ "--tab": Math.max(activeIndex, 0) } as React.CSSProperties}
           >
             <span className="h-7 w-12 rounded-full bg-accent" />
             <span className="invisible">·</span>
           </div>
         </div>
 
-        <ul className="relative grid grid-cols-4">
+        <ul className="relative grid grid-cols-4 md:grid-cols-1">
           {TABS.map((tab) => {
             const active = isActive(tab, pathname);
             const Icon = tab.icon;

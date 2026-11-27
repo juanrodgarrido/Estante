@@ -211,15 +211,14 @@ export function ChatRoom({ view }: { view: ConversationView }) {
     <div
       ref={rootRef}
       data-keyboard="closed"
-      className="group/room fixed inset-x-0 top-0 z-40 flex h-dvh flex-col bg-background"
-      style={{ paddingLeft: "var(--safe-left)", paddingRight: "var(--safe-right)" }}
+      className="group/room fixed inset-x-0 top-0 z-40 flex h-dvh flex-col bg-background pl-[var(--safe-left)] pr-[var(--safe-right)] md:left-[var(--chat-left)] md:pl-0"
     >
       <header className="shrink-0 border-b border-border bg-background/95 pt-safe backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-xl items-center gap-2 px-gutter">
+        <div className="mx-auto flex h-14 w-full max-w-xl items-center gap-2 px-gutter md:max-w-3xl">
           <Link
             href="/chat"
             aria-label="Volver a las conversaciones"
-            className="-ml-3 flex size-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted active:scale-95"
+            className="-ml-3 flex md:hidden size-11 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted active:scale-95"
           >
             <ChevronLeft className="size-6" aria-hidden />
           </Link>
@@ -243,7 +242,7 @@ export function ChatRoom({ view }: { view: ConversationView }) {
         }}
         className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
-        <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-end px-gutter pb-3">
+        <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-end px-gutter pb-3 md:max-w-3xl">
           <div ref={sentinelRef} aria-hidden className="h-px" />
           {loadingOlder ? (
             <div className="flex justify-center py-3 text-muted-foreground">
@@ -313,7 +312,7 @@ export function ChatRoom({ view }: { view: ConversationView }) {
             Mensajes nuevos
           </button>
         ) : null}
-        <div className="mx-auto w-full max-w-xl px-gutter pt-2 pb-[max(0.5rem,var(--safe-bottom))] group-data-[keyboard=open]/room:pb-2">
+        <div className="mx-auto w-full max-w-xl px-gutter md:max-w-3xl pt-2 pb-[max(0.5rem,var(--safe-bottom))] group-data-[keyboard=open]/room:pb-2">
           <Composer
             onSend={send}
             onFocus={() => {

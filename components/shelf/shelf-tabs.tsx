@@ -85,7 +85,7 @@ export function ShelfTabs({ entries, initialTab = "reading", ownerName }: ShelfT
             className="py-10"
           />
         ) : (
-          <ul className="grid grid-cols-3 gap-x-4 gap-y-6 px-gutter">
+          <ul className="grid grid-cols-3 gap-x-4 gap-y-6 px-gutter md:grid-cols-5 lg:grid-cols-6">
             {visible.map((entry) => {
               const percent = percentOf(entry.currentPage, entry.pageCount);
               return (
@@ -95,7 +95,7 @@ export function ShelfTabs({ entries, initialTab = "reading", ownerName }: ShelfT
                       title={entry.title}
                       author={entry.authors[0]}
                       coverUrl={entry.coverUrl}
-                      sizes="(min-width: 640px) 180px, 33vw"
+                      sizes="(min-width: 768px) 140px, (min-width: 640px) 180px, 33vw"
                       className="w-full"
                     />
                     {entry.status === "reading" && percent !== null ? (
