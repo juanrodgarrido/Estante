@@ -150,6 +150,15 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Pendiente de probar**: sin sesión de prueba, solo typecheck, lint y build. Comprobar con dos cuentas: fijar objetivo, progreso y ritmo con tus libros, el amigo ve el reto, el no amigo no, y la actividad al cumplirlo. **Para probar el historial hay que insertar a mano un `readingGoals` de otro año.**
 - Sin dependencias ni variables de entorno nuevas.
 
+### Decisión: zoom desactivado como app nativa
+
+- **Viewport** (`app/layout.tsx`): `maximumScale: 1` y `userScalable: false`. Lo respetan Chrome de Android y las PWA de Android; Safari de iOS lo ignora a propósito (accesibilidad), por eso hacen falta las otras dos capas.
+- **CSS** (`globals.css`): `touch-action: pan-x pan-y` en `html` y `body`. Solo permite desplazar: sin pellizco ni doble toque para ampliar. El `touch-action: manipulation` de botones y enlaces no se toca; el efectivo es la intersección con el de los ancestros, así que también queda en solo desplazar.
+- **JS** (`components/pwa/block-zoom.tsx`): `preventDefault()` en `gesturestart/change/end` (eventos propios de Safari iOS) con listeners no pasivos. Es la red de seguridad si iOS ignora las otras dos.
+- **Ficha del libro**: `components/books/cover-viewer.tsx`. Al tocar la portada se abre a pantalla completa (portal, `touch-action: none`) con zoom propio con Pointer Events: pellizco (1×–5×, alrededor del punto medio), arrastre con zoom, doble toque alterna 1×/2,5× y botón cerrar (44 px, safe area; también Escape). Como el zoom nativo está bloqueado, el visor lo implementa él mismo. Sin portada, no es pulsable.
+- Tamaños de letra, el ajuste de 16 px de los campos y el `touch-action` de botones/enlaces, intactos. Sin dependencias nuevas.
+- **Pendiente de probar** en iPhone (Safari y PWA) y Android (Chrome y PWA).
+
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
 ---

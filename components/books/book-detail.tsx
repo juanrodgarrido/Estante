@@ -7,8 +7,8 @@ import { listFriendReviews } from "@/server/shelf/reviews";
 import { FriendReviews } from "@/components/reviews/friend-reviews";
 import { MyReview } from "@/components/reviews/my-review";
 import { ShelfControl } from "@/components/shelf/shelf-control";
-import { BookCover } from "./book-cover";
 import { BookDescription } from "./book-description";
+import { CoverViewer } from "./cover-viewer";
 
 const LANGUAGES: Record<string, string> = {
   es: "Español", en: "Inglés", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués", ca: "Catalán",
@@ -50,7 +50,7 @@ export async function BookDetail({ id }: { id: string }) {
   return (
     <article className="px-gutter pb-10 pt-2">
       <div className="flex flex-col items-center text-center">
-        <BookCover title={book.title} author={book.authors[0]} coverUrl={book.coverUrl} size="lg" />
+        <CoverViewer title={book.title} author={book.authors[0]} coverUrl={book.coverUrl} />
         <h2 className="font-display mt-6 text-balance text-3xl font-semibold leading-tight">{book.title}</h2>
         {book.subtitle ? <p className="mt-1 text-pretty text-lg text-muted-foreground">{book.subtitle}</p> : null}
         {book.authors.length > 0 ? (

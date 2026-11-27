@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Instrument_Sans } from "next/font/google";
+import { BlockZoom } from "@/components/pwa/block-zoom";
 import { OfflineBanner } from "@/components/pwa/offline-banner";
 import { RegisterServiceWorker } from "@/components/pwa/register-sw";
 import "./globals.css";
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   colorScheme: "light dark",
   themeColor: [
@@ -47,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${fraunces.variable} ${instrumentSans.variable} h-full`}
     >
       <body className="flex min-h-full flex-col">
+        <BlockZoom />
         <OfflineBanner />
         <RegisterServiceWorker />
         {children}
