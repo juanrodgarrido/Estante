@@ -11,7 +11,7 @@ export type UserSummary = {
 
 export type UserSearchResult = UserSummary & { relation: Relation };
 
-export type ActivityType = "started" | "finished" | "rated" | "reviewed";
+export type ActivityType = "started" | "finished" | "rated" | "reviewed" | "goal-completed";
 
 export type ActivityItem = {
   id: string;
@@ -19,9 +19,12 @@ export type ActivityItem = {
   rating?: number;
   /** Solo en «reviewed» y sin spoilers: primeras líneas de la reseña. */
   excerpt?: string;
+  /** Solo en «goal-completed»: año y objetivo del reto cumplido (no hay libro). */
+  goal?: { year: number; target: number };
   createdAt: string;
   user: UserSummary;
-  book: {
+  /** Ausente en «goal-completed». */
+  book?: {
     publicId: string;
     title: string;
     author?: string;

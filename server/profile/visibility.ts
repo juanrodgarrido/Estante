@@ -1,6 +1,8 @@
 import "server-only";
 import { areFriends, getRelation } from "@/server/friends/repository";
+import { getGoalProgress } from "@/server/goals/repository";
 import { listShelf } from "@/server/shelf/repository";
+import type { GoalProgress } from "@/types/goal";
 import type { Relation, UserSummary } from "@/types/friends";
 import type { ShelfEntry } from "@/types/shelf";
 import type { ProfileStats } from "@/types/user";
@@ -10,7 +12,7 @@ export type OtherProfile = {
   profile: UserSummary;
   relation: Relation;
   /** Solo si son amigos aceptados; si no, `null`. */
-  private: { bio: string; stats: ProfileStats; shelf: ShelfEntry[] } | null;
+  private: { bio: string; stats: ProfileStats; goal: GoalProgress | null; shelf: ShelfEntry[] } | null;
 };
 
 /**
@@ -27,10 +29,11 @@ export async function getOtherProfile(viewerId: string, username: string): Promi
   ]);
   if (!friends) return { profile, relation, private: null };
 
-  const [bio, stats, shelf] = await Promise.all([
+  const [bio, stats, goal, shelf] = await Promise.all([
     getBioById(profile.id),
     getProfileStats(profile.id),
+    getGoalProgress(profile.id),
     listShelf(profile.id),
   ]);
-  return { profile, relation, private: { bio, stats, shelf } };
+  return { profile, relation, private: { bio, stats, goal, shelf } };
 }

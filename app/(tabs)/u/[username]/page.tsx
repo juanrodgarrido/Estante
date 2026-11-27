@@ -6,6 +6,7 @@ import { ScreenHeader } from "@/components/app-shell/screen-header";
 import { OpenConversationButton } from "@/components/chat/open-conversation-button";
 import { EmptyState } from "@/components/empty-state";
 import { FriendButton } from "@/components/friends/friend-button";
+import { GoalSummary } from "@/components/goal/goal-summary";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { ProfileStatsGrid } from "@/components/profile/profile-stats";
 import { ShelfTabs } from "@/components/shelf/shelf-tabs";
@@ -40,6 +41,7 @@ async function OtherProfile({ params }: { params: Promise<{ username: string }> 
       {priv ? (
         <>
           <ProfileStatsGrid stats={priv.stats} />
+          {priv.goal ? <GoalSummary goal={priv.goal} /> : null}
           {priv.shelf.length === 0 ? (
             <EmptyState
               icon={Library}

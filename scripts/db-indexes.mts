@@ -13,6 +13,8 @@ const specs: Spec[] = [
   ["friendships", { requesterId: 1, addresseeId: 1 }, { unique: true }],
   ["friendships", { addresseeId: 1, status: 1 }],
   ["activities", { userId: 1, createdAt: -1 }],
+  ["activities", { userId: 1, year: 1 }, { unique: true, partialFilterExpression: { type: "goal-completed" }, name: "goalCompletedOncePerYear" }],
+  ["readingGoals", { userId: 1, year: 1 }, { unique: true }],
   ["conversations", { pairKey: 1 }, { unique: true }],
   ["conversations", { participantIds: 1, "lastMessage.createdAt": -1 }],
   ["messages", { conversationId: 1, createdAt: -1, _id: -1 }],

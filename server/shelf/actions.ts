@@ -20,6 +20,7 @@ import {
   recordReviewActivity,
 } from "@/server/activity/repository";
 import { getCurrentUser } from "@/server/auth";
+import { syncGoalCompletion } from "@/server/goals/repository";
 import { getUserBooks, type UserBookDoc } from "./repository";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -114,6 +115,7 @@ export async function setShelfStatusAction(input: unknown): Promise<ActionResult
     } else if (status === "read" && rating !== undefined && rating !== existing?.rating) {
       await recordActivity(user.id, bookId, "rated", rating);
     }
+    if (status === "read" && existing?.status !== "read") await syncGoalCompletion(user.id);
     if (status !== "read" && existing?.review) await clearReviewActivity(user.id, bookId);
     if (status === "read" && review && reviewChanged(existing?.review, review)) {
       await recordReviewActivity(user.id, bookId);

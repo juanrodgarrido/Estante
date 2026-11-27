@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Loader2, Star } from "lucide-react";
+import { Loader2, Star, Trophy } from "lucide-react";
 import { BookCover } from "@/components/books/book-cover";
 import { Avatar } from "@/components/profile/avatar";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,34 @@ function Rating({ value }: { value: number }) {
   );
 }
 
+function GoalRow({ item, goal }: { item: ActivityItem; goal: NonNullable<ActivityItem["goal"]> }) {
+  return (
+    <li className="flex items-center gap-3 py-3">
+      <Link href={`/u/${item.user.username}`} aria-label={`Perfil de ${item.user.name}`} className="shrink-0">
+        <Avatar name={item.user.name} image={item.user.image} size={40} />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <p className="text-pretty leading-snug">
+          <Link href={`/u/${item.user.username}`} className="font-semibold">
+            {item.user.name}
+          </Link>{" "}
+          ha cumplido su reto de {goal.target} {goal.target === 1 ? "libro" : "libros"} de {goal.year}
+        </p>
+        <time dateTime={item.createdAt} suppressHydrationWarning className="text-sm text-muted-foreground">
+          {relativeTime(item.createdAt)}
+        </time>
+      </div>
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-secondary text-primary" aria-hidden>
+        <Trophy className="size-5" />
+      </span>
+    </li>
+  );
+}
+
 function Row({ item }: { item: ActivityItem }) {
+  if (item.type === "goal-completed") return item.goal ? <GoalRow item={item} goal={item.goal} /> : null;
+  if (!item.book) return null;
+  const book = item.book;
   return (
     <li className="flex items-center gap-3 py-3">
       <Link href={`/u/${item.user.username}`} aria-label={`Perfil de ${item.user.name}`} className="shrink-0">
@@ -50,13 +77,13 @@ function Row({ item }: { item: ActivityItem }) {
             {item.user.name}
           </Link>{" "}
           <Verb item={item} />{" "}
-          <Link href={`/libro/${item.book.publicId}`} className="font-medium italic">
-            {item.book.title}
+          <Link href={`/libro/${book.publicId}`} className="font-medium italic">
+            {book.title}
           </Link>
         </p>
         {item.excerpt ? (
           <Link
-            href={`/libro/${item.book.publicId}`}
+            href={`/libro/${book.publicId}`}
             className="mt-1 line-clamp-2 block text-pretty break-words text-sm leading-snug text-muted-foreground"
           >
             «{item.excerpt}»
@@ -66,8 +93,8 @@ function Row({ item }: { item: ActivityItem }) {
           {relativeTime(item.createdAt)}
         </time>
       </div>
-      <Link href={`/libro/${item.book.publicId}`} aria-label={item.book.title} className="shrink-0 active:opacity-80">
-        <BookCover title={item.book.title} author={item.book.author} coverUrl={item.book.coverUrl} className="w-11" />
+      <Link href={`/libro/${book.publicId}`} aria-label={book.title} className="shrink-0 active:opacity-80">
+        <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} className="w-11" />
       </Link>
     </li>
   );

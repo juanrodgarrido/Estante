@@ -8,9 +8,13 @@ import type { ActivityItem, ActivityPage, ActivityType } from "@/types/friends";
 export type ActivityDoc = {
   _id: ObjectId;
   userId: ObjectId;
-  bookId: ObjectId;
+  /** Ausente en «goal-completed». */
+  bookId?: ObjectId;
   type: ActivityType;
   rating?: number;
+  /** Solo en «goal-completed». */
+  year?: number;
+  target?: number;
   createdAt: Date;
 };
 
@@ -21,7 +25,14 @@ let indexesReady: Promise<unknown> | undefined;
 
 export async function getActivities(): Promise<Collection<ActivityDoc>> {
   const collection = (await getDb()).collection<ActivityDoc>("activities");
-  indexesReady ??= collection.createIndex({ userId: 1, createdAt: -1 }).catch((error) => {
+  indexesReady ??= Promise.all([
+    collection.createIndex({ userId: 1, createdAt: -1 }),
+    // Un solo «reto cumplido» por persona y año, aunque dos peticiones lo intenten a la vez.
+    collection.createIndex(
+      { userId: 1, year: 1 },
+      { unique: true, partialFilterExpression: { type: "goal-completed" }, name: "goalCompletedOncePerYear" },
+    ),
+  ]).catch((error) => {
     indexesReady = undefined;
     throw error;
   });
@@ -88,6 +99,23 @@ export async function recordReviewActivity(userId: string, bookId: string): Prom
   }
 }
 
+/**
+ * Registra «cumplió su reto» una sola vez por año (upsert por `{userId, year}`).
+ * Nunca se borra: si después el progreso baja del objetivo, la entrada se queda.
+ */
+export async function recordGoalCompleted(userId: string, year: number, target: number): Promise<void> {
+  try {
+    await (await getActivities()).updateOne(
+      { userId: new ObjectId(userId), type: "goal-completed", year },
+      { $setOnInsert: { _id: new ObjectId(), target, createdAt: new Date() } },
+      { upsert: true },
+    );
+  } catch (error) {
+    // E11000: otra petición se adelantó y ya está registrado.
+    if ((error as { code?: number }).code !== 11000) console.error("recordGoalCompleted", error);
+  }
+}
+
 /** Borrar la reseña (o sacar el libro de Leídos) borra su actividad. */
 export async function clearReviewActivity(userId: string, bookId: string): Promise<void> {
   try {
@@ -129,7 +157,7 @@ export async function clearActivity(userId: string, bookId: string): Promise<voi
 
 type Row = ActivityDoc & {
   user: { _id: ObjectId; name: string; username?: string; image?: string | null };
-  book: {
+  book?: {
     source: "google" | "openlibrary";
     sourceId: string;
     title: string;
@@ -165,7 +193,8 @@ export async function listFriendActivity(me: string, cursor?: string, limit = 10
       { $lookup: { from: "user", localField: "userId", foreignField: "_id", as: "user" } },
       { $lookup: { from: "books", localField: "bookId", foreignField: "_id", as: "book" } },
       { $unwind: "$user" },
-      { $unwind: "$book" },
+      // «goal-completed» no tiene libro: se conserva la fila sin él.
+      { $unwind: { path: "$book", preserveNullAndEmptyArrays: true } },
     ])
     .toArray();
 
@@ -173,7 +202,7 @@ export async function listFriendActivity(me: string, cursor?: string, limit = 10
   const last = rows.length > limit ? rows[limit - 1] : null;
 
   // «Reseñó»: el extracto sale de la reseña actual (nunca si tiene spoilers).
-  const reviewed = page.filter((row) => row.type === "reviewed");
+  const reviewed = page.filter((row) => row.type === "reviewed" && row.bookId);
   const reviews = new Map<string, { text: string; hasSpoilers: boolean }>();
   if (reviewed.length > 0) {
     const docs = await (await getUserBooks())
@@ -193,6 +222,8 @@ export async function listFriendActivity(me: string, cursor?: string, limit = 10
 
   const items: ActivityItem[] = page.flatMap((row): ActivityItem[] => {
     let excerpt: string | undefined;
+    if (row.type === "goal-completed") return [toItem(row)];
+    if (!row.book || !row.bookId) return []; // libro desaparecido
     if (row.type === "reviewed") {
       const review = reviews.get(`${row.userId.toHexString()}_${row.bookId.toHexString()}`);
       if (!review) return []; // reseña ya borrada: no hay nada que enseñar
@@ -220,6 +251,9 @@ function toItem(row: Row, excerpt?: string): ActivityItem {
     type: row.type,
     rating: row.rating,
     ...(excerpt ? { excerpt } : {}),
+    ...(row.type === "goal-completed" && row.year !== undefined && row.target !== undefined
+      ? { goal: { year: row.year, target: row.target } }
+      : {}),
     createdAt: row.createdAt.toISOString(),
     user: {
       id: row.user._id.toHexString(),
@@ -227,11 +261,15 @@ function toItem(row: Row, excerpt?: string): ActivityItem {
       username: row.user.username ?? "",
       image: row.user.image ?? null,
     },
-    book: {
-      publicId: `${row.book.source === "google" ? "g" : "ol"}-${row.book.sourceId}`,
-      title: row.book.title,
-      author: row.book.authors[0],
-      coverUrl: row.book.coverUrl,
-    },
+    ...(row.book
+      ? {
+          book: {
+            publicId: `${row.book.source === "google" ? "g" : "ol"}-${row.book.sourceId}`,
+            title: row.book.title,
+            author: row.book.authors[0],
+            coverUrl: row.book.coverUrl,
+          },
+        }
+      : {}),
   };
 }

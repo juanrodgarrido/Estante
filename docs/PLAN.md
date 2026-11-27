@@ -16,7 +16,7 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - [x] Sesión 9 — `pulido`: PWA offline, rendimiento, revisión final y pantallas grandes (punto 3b)
 - [ ] Sesión 10a — `notificaciones`: push y número de no leídos en el icono
 - [x] Sesión 10b — `resenas`: reseñas de libros para amigos
-- [ ] Sesión 10c — `objetivo`: reto de lectura anual
+- [x] Sesión 10c — `objetivo`: reto de lectura anual
 
 ## Decisiones tomadas
 
@@ -139,6 +139,17 @@ Cada sesión es una conversación nueva de Claude Code con nombre propio (`claud
 - **Pendiente de probar**: sin sesión de prueba, solo typecheck, lint y build. Comprobar con dos cuentas amigas: escribir/editar/borrar, la ficha del amigo, el extracto en Inicio y el difuminado con spoilers; y que una cuenta no amiga no ve nada.
 - Sin dependencias ni variables de entorno nuevas.
 
+### Decisiones de la Sesión 10c (`objetivo`)
+
+- **Datos**: colección `readingGoals { userId, year, target (1–365), createdAt, updatedAt }`, índice único `{userId, year}` (creado solo y en `npm run db:indexes`). El progreso **no se guarda**: `countReadInYear` cuenta `userBooks` en `read` con `finishedAt` en `[1 ene, 1 ene siguiente)` en UTC (mismo año natural UTC que `getProfileStats`). Código en `server/goals/` (`repository.ts`, `actions.ts`); `setReadingGoalAction` (Zod en `lib/validation/goal.ts`, `getCurrentUser()`) solo toca el año en curso.
+- **Ritmo** (`lib/goal.ts`): esperado = `objetivo × díaDelAño / díasDelAño` (el día en curso cuenta entero); la diferencia se trunca a libros enteros, así que menos de un libro de diferencia es «Vas al día». Se calcula en el servidor tras la sesión (no se congela en el build).
+- **Inicio**: `YearGoal` arriba del todo → `GoalCard` (cliente). Sin objetivo, invitación «¿Cuántos libros quieres leer en 2026?»; ambas abren un panel inline (mismo patrón que «Lo he terminado», no hay componente de diálogo) con campo numérico y atajos 12/24/36/52. Al cumplirlo: «¡Reto cumplido!», anillo con ✓ y animación `goal-pop` (se desactiva con `prefers-reduced-motion`); sigue contando («34 de 30»).
+- **Perfil**: `GoalSummary` bajo las estadísticas en `/perfil` y `/u/[username]`. En el de otra persona sale de `getOtherProfile` (`private.goal`), por lo que **solo llega a amigos**. «Retos anteriores» (`PastGoals`, `listPastGoals`) solo en `/perfil` y solo si hay años anteriores con objetivo; un año sin objetivo no aparece.
+- **Actividad**: tipo `goal-completed` con `year` y `target` (sin `bookId`; `ActivityItem.book` ahora es opcional). `recordGoalCompleted` hace upsert por `{userId, type, year}` + índice único parcial `goalCompletedOncePerYear`, así que es una sola vez al año aunque haya carreras. Nunca se borra (`clearActivity` filtra por `bookId`). `syncGoalCompletion` se llama al pasar un libro a Leídos y al fijar/bajar el objetivo (bajarlo por debajo de lo ya leído también lo cumple). Subir luego el objetivo no genera otra entrada.
+- **Limitaciones**: quitar libros o bajar de «cumplido» no revierte nada (a propósito). El objetivo de un año pasado no se puede editar. Si un libro se marca como leído con `finishedAt` de otro año por datos antiguos, cuenta en ese año.
+- **Pendiente de probar**: sin sesión de prueba, solo typecheck, lint y build. Comprobar con dos cuentas: fijar objetivo, progreso y ritmo con tus libros, el amigo ve el reto, el no amigo no, y la actividad al cumplirlo. **Para probar el historial hay que insertar a mano un `readingGoals` de otro año.**
+- Sin dependencias ni variables de entorno nuevas.
+
 (Claude añade aquí las decisiones nuevas de cada sesión.)
 
 ---
@@ -208,11 +219,16 @@ Las colecciones de Better Auth (`user`, `session`, `account`, `verification`) la
   _id,
   userId: ObjectId,
   bookId: ObjectId,
-  type: "started" | "finished" | "rated" | "reviewed",
+  type: "started" | "finished" | "rated" | "reviewed" | "goal-completed",
   rating?: 1 | 2 | 3 | 4 | 5,
+  year?: number, target?: number,   // solo "goal-completed" (sin bookId)
   createdAt: Date,
 }
-// índice: { userId, createdAt: -1 }
+// índices: { userId, createdAt: -1 }; único parcial { userId, year } para "goal-completed"
+
+// readingGoals — objetivo anual (el progreso se calcula, no se guarda)
+{ _id, userId: ObjectId, year: number, target: number /* 1-365 */, createdAt: Date, updatedAt: Date }
+// índice único: { userId, year }
 
 // conversations — solo 1 a 1 entre amigos
 {
