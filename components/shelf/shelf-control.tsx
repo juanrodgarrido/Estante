@@ -72,8 +72,6 @@ export function ShelfControl({
     }
   }
 
-  const finish =() => run({ type: "status", status: "read" }, () => setShelfStatusAction({ bookId, status: "read" }));
-
   return (
     <div className="space-y-4">
       <p className="text-center text-sm text-muted-foreground">
@@ -107,17 +105,12 @@ export function ShelfControl({
       </div>
 
       {state?.status === "reading" ? (
-        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-          <ReadingProgress bookId={bookId} currentPage={state.currentPage} pageCount={pageCount} onReachEnd={finish} />
-          <button
-            type="button"
-            onClick={finish}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-secondary text-base font-medium text-secondary-foreground transition-transform active:scale-[0.97]"
-          >
-            <Check className="size-5" aria-hidden />
-            Lo he terminado
-          </button>
-        </div>
+        <ReadingProgress
+          bookId={bookId}
+          currentPage={state.currentPage}
+          pageCount={pageCount}
+          className="rounded-xl border border-border bg-card p-4"
+        />
       ) : null}
 
       {state?.status === "read" ? (
